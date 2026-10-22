@@ -1,0 +1,81 @@
+name: swastikala
+description: Premium Artificial Jewellery App
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.8.0 <4.0.0"
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Networking
+  dio: ^5.11.0
+
+  # Models
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.9.2
+
+  # Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.4
+  shared_preferences: ^2.5.3
+
+  # Images
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
+
+  # UI
+  shimmer: ^3.0.0
+  lottie: ^3.3.1
+  google_fonts: ^6.3.0
+  flutter_widget_from_html_core: ^0.16.0
+  flutter_animate: ^4.5.2
+
+  # Device
+  image_picker: ^1.2.0
+  connectivity_plus: ^7.0.0
+  path_provider: ^2.1.5
+  package_info_plus: ^9.0.0
+  url_launcher: ^6.3.2
+  share_plus: ^12.0.1
+  open_filex: ^4.7.0
+
+  # Firebase
+  firebase_core: ^4.1.0
+  firebase_messaging: ^16.0.1
+  flutter_local_notifications: ^19.4.0
+
+  # Payments
+  razorpay_flutter: ^1.4.0
+
+  # Utils
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  build_runner: ^2.7.2
+  freezed: ^3.2.3
+  json_serializable: ^6.11.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/lottie/

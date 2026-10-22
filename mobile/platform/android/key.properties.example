@@ -1,0 +1,4 @@
+storePassword=CHANGE_ME
+keyPassword=CHANGE_ME
+keyAlias=swastikala
+storeFile=/absolute/path/to/swastikala-release.jks

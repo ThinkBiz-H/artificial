@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/breakdown.mjs)",
+      "Bash(flutter test *)",
+      "Bash(grep -oE \"\\\\- [a-z_]+$\")",
+      "Bash(grep -n \"app.use\\(\\\\\"/api\\\\|app.use\\('/api\\\\|apiRouter.use\\\\|router.use\\(\\\\\"/\\\\|v1.use\" app.js routes/index.js)",
+      "Bash(node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/routes.mjs)",
+      "Bash(rm features/coupons/viewmodels/coupons_viewmodel.dart core/models/coupon_model.dart core/models/coupon_model.*.dart)",
+      "Bash(rmdir features/coupons/viewmodels)",
+      "Bash(node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/payloads.mjs auth user product category brand settings homeSection announcement workshop page faq wishlist cart checkout order payment notification review shipping contact)",
+      "Bash(timeout 590 flutter build web --debug)",
+      "Bash(grep -vE \"^\\\\s*$\")",
+      "Bash(timeout 60 node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/refresh_grace.js)",
+      "Bash(grep -E \"^\\(tsc|vite\\)$\")",
+      "Bash(grep -iv \"refundStatus\\\\|//\")",
+      "Bash(timeout 60 node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/admin_smoke.js)",
+      "Bash(node /c/Users/THINKB~1/AppData/Local/Temp/claude/d--artificial/16962bed-7f23-4719-a471-afd63974f021/scratchpad/customer.mjs)",
+      "Bash(node -r dotenv/config -e ' *)",
+      "Bash(timeout 60 node -r dotenv/config -e ' *)",
+      "Bash(NODE_OPTIONS=--max-old-space-size=4096 timeout 400 npx vite build)",
+      "Bash(sed -E 's/=\\(.{4}\\).*/=\\\\1…\\(len hidden\\)/')",
+      "Bash(awk -F= '/^JWT_\\(ACCESS|REFRESH\\)_SECRET/{print $1, length\\($2\\)}' .env)"
+    ]
+  }
+}
