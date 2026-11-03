@@ -66,7 +66,7 @@ const renderLayout = ({ preheader = "", bodyHtml = "" }) => `<!DOCTYPE html>
             <td align="center" bgcolor="${BRAND.colors.black}" style="padding:28px 24px;">
               ${
                 BRAND.logoUrl
-                  ? `<img src="${BRAND.logoUrl}" alt="${esc(BRAND.name)}" height="40" style="height:40px; display:block;" />`
+                  ? `<img src="${BRAND.logoUrl}" alt="${esc(BRAND.name)}" height="72" style="height:72px; width:auto; display:block;" />`
                   : `<span style="font-family:Georgia, 'Times New Roman', serif; font-size:24px; letter-spacing:2px; color:${BRAND.colors.gold}; text-transform:uppercase;">${esc(BRAND.name)}</span>`
               }
             </td>

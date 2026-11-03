@@ -15,7 +15,7 @@ export function AuthShell({
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
-  const { siteName } = useStoreInfo();
+  const { siteName, logo } = useStoreInfo();
 
   const image = "/image/editorial.jpg";
 
@@ -72,6 +72,9 @@ export function AuthShell({
       {/* Right Form */}
       <div className="flex items-center justify-center bg-[#FAF7F2] px-6 py-12 sm:px-10">
         <div className="w-full max-w-[430px] rounded-3xl bg-white p-10 shadow-xl">
+          <Link to="/" aria-label={`${siteName} home`} className="mb-6 inline-block">
+            <img src={logo} alt={siteName} width={1264} height={843} className="h-16 w-auto object-contain" />
+          </Link>
           <p className="eyebrow">{eyebrow}</p>
 
           <h1 className="mt-3 font-display text-5xl font-light leading-tight text-fg">

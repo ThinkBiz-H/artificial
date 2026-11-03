@@ -14,6 +14,10 @@ const notificationTemplateSchema = new mongoose.Schema(
     subject: { type: String, default: '' }, // used for email; ignored for sms/push/in_app
     body: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    // Push presets for the admin composer (optional).
+    name: { type: String, default: '' },
+    imageUrl: { type: String, default: '' },
+    link: { type: String, default: '' },
   },
   { timestamps: true }
 );

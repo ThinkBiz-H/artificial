@@ -8,6 +8,7 @@ const User = require("../models/User");
 const ApiError = require("../utils/ApiError");
 const logger = require("../utils/logger");
 const { notify } = require("./notification.service");
+const { ensureDefaultWarehouse } = require("./warehouse.service");
 
 const runInTransaction = async (fn, externalSession = null) => {
   if (externalSession) {
@@ -37,19 +38,10 @@ const runInTransaction = async (fn, externalSession = null) => {
   }
 };
 
-const getDefaultWarehouse = async (session = null) => {
-  const warehouse = await Warehouse.findOne({
-    isDefault: true,
-    status: "active",
-  }).session(session);
-  if (!warehouse) {
-    throw new ApiError(
-      500,
-      "No default warehouse configured. Create a warehouse and mark it isDefault first.",
-    );
-  }
-  return warehouse;
-};
+// The active default warehouse — repaired automatically if missing,
+// duplicated or inactive (services/warehouse.service.js), so stock
+// operations never fail on warehouse configuration.
+const getDefaultWarehouse = (session = null) => ensureDefaultWarehouse(session);
 
 const resolveWarehouse = async (warehouseId, session = null) => {
   if (!warehouseId) return getDefaultWarehouse(session);
@@ -510,11 +502,12 @@ const restoreForOrderCancellation = ({
   orderId,
   performedBy = null,
   session = null,
+  warehouseId = null, // the warehouse the units were sold from (default warehouse when omitted)
 }) =>
   applyMovement({
     productId,
     variantId,
-    warehouseId: null,
+    warehouseId,
     bucket: "available",
     quantity,
     type: "return",

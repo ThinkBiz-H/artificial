@@ -13,6 +13,7 @@ class TokenManager {
   String? _accessToken;
   String? _refreshToken;
   final StreamController<void> _expired = StreamController<void>.broadcast();
+  final StreamController<String?> _accessChanged = StreamController<String?>.broadcast();
 
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
@@ -23,6 +24,10 @@ class TokenManager {
   /// Fires when a refresh attempt is rejected by the server.
   Stream<void> get onSessionExpired => _expired.stream;
 
+  /// Fires with the new access token whenever it is saved (login, refresh)
+  /// or cleared (logout) — lets the realtime socket re-authenticate.
+  Stream<String?> get onAccessTokenChanged => _accessChanged.stream;
+
   Future<void> load() async {
     _accessToken = await _storage.read(SecureStorageService.accessTokenKey);
     _refreshToken = await _storage.read(SecureStorageService.refreshTokenKey);
@@ -31,6 +36,7 @@ class TokenManager {
   Future<void> saveAccessToken(String token) async {
     _accessToken = token;
     await _storage.write(SecureStorageService.accessTokenKey, token);
+    if (!_accessChanged.isClosed) _accessChanged.add(token);
   }
 
   Future<void> saveRefreshToken(String token) async {
@@ -50,6 +56,7 @@ class TokenManager {
     _refreshToken = null;
     await _storage.delete(SecureStorageService.accessTokenKey);
     await _storage.delete(SecureStorageService.refreshTokenKey);
+    if (!_accessChanged.isClosed) _accessChanged.add(null);
   }
 
   void notifySessionExpired() {
@@ -74,5 +81,8 @@ class TokenManager {
     return null;
   }
 
-  void dispose() => _expired.close();
+  void dispose() {
+    _expired.close();
+    _accessChanged.close();
+  }
 }

@@ -59,6 +59,13 @@ class NotificationRepository {
     await _api.post(ApiEndpoints.pushToken, data: {'token': token});
   }
 
+  /// Click analytics for admin campaigns — best effort, never surfaces errors.
+  Future<void> reportCampaignOpened(String campaignId) async {
+    try {
+      await _api.post(ApiEndpoints.campaignOpened(campaignId));
+    } catch (_) {}
+  }
+
   Future<void> unregisterPushToken(String token) async {
     try {
       await _api.delete(ApiEndpoints.pushToken, data: {'token': token});

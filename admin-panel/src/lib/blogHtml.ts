@@ -1,19 +1,26 @@
 import DOMPurify from "dompurify";
 
-// Sanitizes blog HTML produced by the Blog rich text editor before it is
-// saved. Only semantic tags plus the handful of inline styles the editor
-// itself produces (colour, highlight, font size/family, alignment) survive —
-// scripts, event handlers, iframes, javascript: URLs and any other markup are
-// stripped. The storefront runs the same rules again before rendering
-// (frontend/src/lib/blogHtml.ts), so keep the two lists in sync.
+// Sanitizes blog HTML before it is saved. Only semantic tags, tables,
+// captioned images/galleries, YouTube/Vimeo embeds and the handful of inline
+// styles the editor itself produces (colour, highlight, font size/family,
+// alignment) survive — scripts, event handlers, other iframes, javascript:
+// URLs and any other markup are stripped. The storefront runs the same rules
+// again before rendering (frontend/src/lib/blogHtml.ts), so keep the two
+// lists in sync.
 
 const ALLOWED_TAGS = [
   "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr",
   "strong", "b", "em", "i", "u", "s", "del", "span", "mark", "code", "pre",
   "ul", "ol", "li", "blockquote", "a", "img",
+  // Tables, captioned images / galleries and video embeds.
+  "table", "thead", "tbody", "tfoot", "tr", "th", "td", "caption",
+  "figure", "figcaption", "div", "iframe",
 ];
 
-const ALLOWED_ATTR = ["href", "target", "rel", "src", "alt", "title", "width", "height", "style", "class", "start"];
+const ALLOWED_ATTR = [
+  "href", "target", "rel", "src", "alt", "title", "width", "height", "style", "class", "start",
+  "colspan", "rowspan", "scope", "allowfullscreen",
+];
 
 const ALLOWED_STYLES = new Set(["color", "background-color", "font-size", "font-family", "text-align"]);
 
@@ -22,11 +29,24 @@ const ALLOWED_STYLES = new Set(["color", "background-color", "font-size", "font-
 const SAFE_STYLE_VALUE = /^[#\w\s,.'"%()-]+$/;
 const UNSAFE_STYLE_VALUE = /url\s*\(|expression\s*\(|javascript:|@import|\\/i;
 
+/** Classes that mean something to the storefront: code languages, galleries, video frames. */
+const ALLOWED_CLASS = /^(language-[\w-]+|gallery|gallery-2|gallery-3|video)$/;
+
+/** Only these players may be embedded. */
+const EMBED_SRC = /^https:\/\/(www\.youtube\.com\/embed\/|www\.youtube-nocookie\.com\/embed\/|youtube\.com\/embed\/|player\.vimeo\.com\/video\/)[\w\-/?=&.%]+$/i;
+
 let hooksInstalled = false;
 
 function installHooks() {
   if (hooksInstalled) return;
   hooksInstalled = true;
+
+  // Drop any iframe that isn't a YouTube / Vimeo player.
+  DOMPurify.addHook("uponSanitizeElement", (node, data) => {
+    if (data.tagName === "iframe" && !EMBED_SRC.test((node as Element).getAttribute?.("src") || "")) {
+      node.parentNode?.removeChild(node);
+    }
+  });
 
   DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
     if (data.attrName === "style") {
@@ -46,9 +66,11 @@ function installHooks() {
       if (kept.length) data.attrValue = `${kept.join("; ")};`;
       else data.keepAttr = false;
     }
-    // Only code-block language classes are meaningful; drop everything else.
-    if (data.attrName === "class" && !/^language-[\w-]+$/.test(data.attrValue)) {
-      data.keepAttr = false;
+    // Only classes the storefront styles are kept.
+    if (data.attrName === "class") {
+      const classes = data.attrValue.split(/\s+/).filter((c) => ALLOWED_CLASS.test(c));
+      if (classes.length) data.attrValue = classes.join(" ");
+      else data.keepAttr = false;
     }
   });
 
@@ -65,5 +87,5 @@ export function sanitizeBlogHtml(html: string): string {
   // DOMPurify's built-in URL check already rejects javascript:/data: links.
   // Trailing empty paragraphs are editor artefacts (the cursor slot after a
   // final image/list), not content.
-  return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR }).replace(/(?:<p><\/p>)+$/, "");
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR, ADD_ATTR: ["allowfullscreen"] }).replace(/(?:<p><\/p>)+$/, "");
 }

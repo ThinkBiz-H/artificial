@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useLogin } from "@/hooks/useAuth";
 import { useAuthStore } from "@/stores/auth.store";
+import { useBrandLogo, useBrandName } from "@/hooks/useBrand";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -15,6 +16,8 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function LoginPage() {
+  const logo = useBrandLogo("adminLogo");
+  const brandName = useBrandName();
   const {
     register,
     handleSubmit,
@@ -35,6 +38,7 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-surface px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-white p-8 shadow-sm">
+        <img src={logo} alt={brandName} className="mb-5 h-14 w-auto object-contain" />
         <h1 className="text-lg font-semibold text-ink">Admin sign in</h1>
         <p className="mt-1 text-sm text-muted">
           Manage your store from one place.

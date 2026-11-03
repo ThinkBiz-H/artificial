@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { useBrandLogo } from "@/hooks/useBrand";
 import {
   LayoutDashboard,
   Package,
@@ -13,6 +14,7 @@ import {
   FileText,
   Bell,
   Settings,
+  Palette,
   BarChart3,
   ImageIcon,
   ScrollText,
@@ -23,6 +25,7 @@ import {
   ShieldCheck,
   UserCog,
   Boxes,
+  Warehouse as WarehouseIcon,
   CreditCard,
   LifeBuoy,
   LineChart,
@@ -34,28 +37,76 @@ import type { PermissionResource } from "@/types";
 
 const NAV_GROUPS: {
   label: string;
-  items: { label: string; to: string; icon: typeof LayoutDashboard; resource: PermissionResource }[];
+  items: {
+    label: string;
+    to: string;
+    icon: typeof LayoutDashboard;
+    resource: PermissionResource;
+  }[];
 }[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", to: "/dashboard", icon: LayoutDashboard, resource: "Dashboard" }],
+    items: [
+      {
+        label: "Dashboard",
+        to: "/dashboard",
+        icon: LayoutDashboard,
+        resource: "Dashboard",
+      },
+    ],
   },
   {
     label: "Catalog",
     items: [
-      { label: "Products", to: "/products", icon: Package, resource: "Products" },
-      { label: "Categories", to: "/categories", icon: FolderTree, resource: "Categories" },
+      {
+        label: "Products",
+        to: "/products",
+        icon: Package,
+        resource: "Products",
+      },
+      {
+        label: "Categories",
+        to: "/categories",
+        icon: FolderTree,
+        resource: "Categories",
+      },
       { label: "Brands", to: "/brands", icon: Tag, resource: "Brands" },
-      { label: "Inventory", to: "/inventory", icon: Boxes, resource: "Inventory" },
+      {
+        label: "Inventory",
+        to: "/inventory",
+        icon: Boxes,
+        resource: "Inventory",
+      },
+      { label: "Warehouses", to: "/warehouses", icon: WarehouseIcon, resource: "Warehouse" },
     ],
   },
   {
     label: "Sales",
     items: [
-      { label: "Orders", to: "/orders", icon: ShoppingCart, resource: "Orders" },
-      { label: "Transactions", to: "/transactions", icon: CreditCard, resource: "Orders" },
-      { label: "Returns & refunds", to: "/returns", icon: RotateCcw, resource: "Orders" },
-      { label: "Customers", to: "/customers", icon: Users, resource: "Customers" },
+      {
+        label: "Orders",
+        to: "/orders",
+        icon: ShoppingCart,
+        resource: "Orders",
+      },
+      {
+        label: "Transactions",
+        to: "/transactions",
+        icon: CreditCard,
+        resource: "Orders",
+      },
+      {
+        label: "Returns & refunds",
+        to: "/returns",
+        icon: RotateCcw,
+        resource: "Orders",
+      },
+      {
+        label: "Customers",
+        to: "/customers",
+        icon: Users,
+        resource: "Customers",
+      },
       { label: "Coupons", to: "/coupons", icon: Ticket, resource: "Coupons" },
       { label: "Reviews", to: "/reviews", icon: Star, resource: "Reviews" },
     ],
@@ -64,29 +115,81 @@ const NAV_GROUPS: {
     label: "Content",
     items: [
       { label: "Blog", to: "/blogs", icon: Newspaper, resource: "Blogs" },
-      { label: "CMS Pages", to: "/cms/pages", icon: FileText, resource: "Settings" },
-      { label: "Homepage Builder", to: "/cms/home-sections", icon: LayoutTemplate, resource: "Settings" },
-      { label: "Announcement Bar", to: "/cms/announcement-bar", icon: Megaphone, resource: "Settings" },
-      { label: "Media Library", to: "/media", icon: ImageIcon, resource: "Settings" },
+      {
+        label: "CMS Pages",
+        to: "/cms/pages",
+        icon: FileText,
+        resource: "Settings",
+      },
+      {
+        label: "Homepage Builder",
+        to: "/cms/home-sections",
+        icon: LayoutTemplate,
+        resource: "Settings",
+      },
+      {
+        label: "Announcement Bar",
+        to: "/cms/announcement-bar",
+        icon: Megaphone,
+        resource: "Settings",
+      },
+      {
+        label: "Media Library",
+        to: "/media",
+        icon: ImageIcon,
+        resource: "Settings",
+      },
     ],
   },
   {
     label: "Marketing",
-    items: [{ label: "Category Banners", to: "/marketing/category-banners", icon: Images, resource: "Settings" }],
+    items: [
+      {
+        label: "Category Banners",
+        to: "/marketing/category-banners",
+        icon: Images,
+        resource: "Settings",
+      },
+    ],
   },
   {
     label: "Engagement",
     items: [
-      { label: "Notifications", to: "/notifications", icon: Bell, resource: "Notifications" },
-      { label: "Support", to: "/support", icon: LifeBuoy, resource: "Customers" },
+      {
+        label: "Notifications",
+        to: "/notifications",
+        icon: Bell,
+        resource: "Notifications",
+      },
+      {
+        label: "Support",
+        to: "/support",
+        icon: LifeBuoy,
+        resource: "Customers",
+      },
     ],
   },
   {
     label: "Insights",
     items: [
-      { label: "Analytics", to: "/analytics", icon: LineChart, resource: "Reports" },
-      { label: "Reports", to: "/reports", icon: BarChart3, resource: "Reports" },
-      { label: "Audit log", to: "/audit-log", icon: ScrollText, resource: "Settings" },
+      {
+        label: "Analytics",
+        to: "/analytics",
+        icon: LineChart,
+        resource: "Reports",
+      },
+      {
+        label: "Reports",
+        to: "/reports",
+        icon: BarChart3,
+        resource: "Reports",
+      },
+      {
+        label: "Audit log",
+        to: "/audit-log",
+        icon: ScrollText,
+        resource: "Settings",
+      },
     ],
   },
   {
@@ -98,11 +201,20 @@ const NAV_GROUPS: {
   },
   {
     label: "System",
-    items: [{ label: "Settings", to: "/settings", icon: Settings, resource: "Settings" }],
+    items: [
+      {
+        label: "Settings",
+        to: "/settings",
+        icon: Settings,
+        resource: "Settings",
+      },
+      { label: "Brand Management", to: "/settings/brand", icon: Palette, resource: "Settings" },
+    ],
   },
 ];
 
 export function Sidebar() {
+  const adminLogo = useBrandLogo("adminLogo");
   const isOpen = useUiStore((s) => s.isSidebarOpen);
   const setOpen = useUiStore((s) => s.setSidebarOpen);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -118,9 +230,17 @@ export function Sidebar() {
   const content = (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
-        <span className="flex items-baseline gap-2">
-          <span className="font-display text-xl font-semibold uppercase tracking-[0.22em] text-brand">Swastikala</span>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">Admin</span>
+        <span className="flex items-center gap-2">
+          <img
+            src={adminLogo}
+            alt="Abj Jewellery"
+            width={1264}
+            height={843}
+            className="h-11 w-auto object-contain"
+          />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Admin
+          </span>
         </span>
         <button
           className="lg:hidden"

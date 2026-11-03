@@ -61,8 +61,16 @@ const set = async (key, value, ttlSeconds = 300) => {
   }
 };
 
+// Bumped on every invalidation of a prefix. A response is only cached if no
+// invalidation happened while it was being built — otherwise a read that
+// raced a write could re-cache the old data right after it was cleared.
+const generations = new Map();
+const generationOf = (prefix) => generations.get(prefix) || 0;
+
 /** Deletes every key matching `pattern` (e.g. "products:*") — used for invalidation on write. */
 const invalidate = async (pattern) => {
+  const prefix = String(pattern).split(':')[0];
+  generations.set(prefix, generationOf(prefix) + 1);
   const c = getClient();
   if (!c) return 0;
   // SCAN in batches rather than KEYS, which blocks Redis for every client
@@ -80,11 +88,25 @@ const invalidate = async (pattern) => {
 };
 
 /**
+ * Whether every write is being turned into cache invalidation automatically
+ * (services/liveSync.service.js — a MongoDB change stream). Routes whose data
+ * is written from many places (products: admin edits, orders, inventory…)
+ * are only cached while this is on, so they can never serve stale data.
+ */
+let liveInvalidation = false;
+const setLiveInvalidation = (on) => {
+  liveInvalidation = !!on;
+};
+
+/**
  * Express middleware factory — caches a GET route's JSON response.
  * Usage: router.get('/', cacheMiddleware('categories', 600), getCategories)
+ * `{ requiresLiveSync: true }` skips caching unless live invalidation is on.
  */
-const cacheMiddleware = (keyPrefix, ttlSeconds = 300) => async (req, res, next) => {
+const cacheMiddleware = (keyPrefix, ttlSeconds = 300, { requiresLiveSync = false } = {}) => async (req, res, next) => {
+  if (requiresLiveSync && !liveInvalidation) return next();
   const key = `${keyPrefix}:${req.originalUrl}`;
+  const generation = generationOf(keyPrefix);
   const cached = await get(key);
   if (cached) {
     res.setHeader('X-Cache', 'HIT');
@@ -94,10 +116,10 @@ const cacheMiddleware = (keyPrefix, ttlSeconds = 300) => async (req, res, next) 
   res.setHeader('X-Cache', 'MISS');
   const originalJson = res.json.bind(res);
   res.json = (body) => {
-    if (res.statusCode === 200) set(key, body, ttlSeconds).catch(() => {});
+    if (res.statusCode === 200 && generationOf(keyPrefix) === generation) set(key, body, ttlSeconds).catch(() => {});
     return originalJson(body);
   };
   next();
 };
 
-module.exports = { get, set, invalidate, cacheMiddleware, getClient };
+module.exports = { get, set, invalidate, cacheMiddleware, getClient, setLiveInvalidation };

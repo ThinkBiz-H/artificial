@@ -2,7 +2,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { renderTemplate } = require('./notificationTemplate.service');
-const { enqueue } = require('./notificationQueue.service');
+const { enqueue, processPendingJobs } = require('./notificationQueue.service');
 
 /**
  * Creates an in-app notification for a user — always, exactly as before
@@ -13,10 +13,10 @@ const { enqueue } = require('./notificationQueue.service');
  * channel is silently skipped (not an error) — most types only ever go
  * out on some channels.
  */
-const notify = async ({ user, type = 'system', title, message, link = null, relatedOrder = null, relatedProduct = null, variables = null }) => {
+const notify = async ({ user, type = 'system', title, message, link = null, relatedOrder = null, relatedProduct = null, variables = null, imageUrl = null }) => {
   let inApp = null;
   try {
-    inApp = await Notification.create({ user, type, title, message, link, relatedOrder, relatedProduct });
+    inApp = await Notification.create({ user, type, title, message, link, relatedOrder, relatedProduct, imageUrl });
   } catch (error) {
     logger.error(`Failed to create notification for user ${user}: ${error.message}`);
   }
@@ -40,7 +40,21 @@ const notify = async ({ user, type = 'system', title, message, link = null, rela
       await enqueue({ channel: 'sms', recipientUser: recipient._id, to: recipient.mobile, body: smsTemplate.body });
     }
     if (pushTemplate && recipient.pushTokens?.length) {
-      await Promise.all(recipient.pushTokens.map((token) => enqueue({ channel: 'push', recipientUser: recipient._id, to: token, subject: pushTemplate.subject, body: pushTemplate.body })));
+      // Tapping the push opens the same place as the in-app notification.
+      const data = {
+        type,
+        link,
+        orderId: relatedOrder ? String(relatedOrder) : null,
+        productId: relatedProduct ? String(relatedProduct) : null,
+        notificationId: inApp ? String(inApp._id) : null,
+        badge: await Notification.countDocuments({ user: recipient._id, isRead: false }),
+      };
+      await Promise.all(recipient.pushTokens.map((token) => enqueue({ channel: 'push', recipientUser: recipient._id, to: token, subject: pushTemplate.subject, body: pushTemplate.body, data, imageUrl: imageUrl || '' })));
+    }
+    // Deliver now rather than on the next 30s queue tick (jobs are claimed
+    // atomically, so this never double-sends with the scheduler).
+    if (pushTemplate || emailTemplate || smsTemplate) {
+      setImmediate(() => processPendingJobs().catch((err) => logger.error(`Immediate notification delivery failed: ${err.message}`)));
     }
   } catch (error) {
     // Multi-channel fan-out is a bonus on top of the in-app notification,

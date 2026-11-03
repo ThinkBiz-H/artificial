@@ -22,12 +22,12 @@ const getTemplates = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/admin/notification-templates
 // @access  Private/Admin
 const createTemplate = asyncHandler(async (req, res) => {
-  const { type, channel, subject, body, isActive } = req.body;
+  const { type, channel, subject, body, isActive, name, imageUrl, link } = req.body;
 
   const existing = await NotificationTemplate.findOne({ type, channel });
   if (existing) throw new ApiError(409, `A template for type "${type}" + channel "${channel}" already exists — use PUT to update it.`);
 
-  const template = await NotificationTemplate.create({ type, channel, subject, body, isActive });
+  const template = await NotificationTemplate.create({ type, channel, subject, body, isActive, name, imageUrl, link });
   sendResponse(res, 201, { template }, 'Template created successfully');
 });
 
@@ -38,7 +38,7 @@ const updateTemplate = asyncHandler(async (req, res) => {
   const template = await NotificationTemplate.findById(req.params.id);
   if (!template) throw new ApiError(404, 'Template not found');
 
-  ['subject', 'body', 'isActive'].forEach((field) => {
+  ['subject', 'body', 'isActive', 'name', 'imageUrl', 'link'].forEach((field) => {
     if (req.body[field] !== undefined) template[field] = req.body[field];
   });
 

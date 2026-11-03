@@ -1,6 +1,7 @@
 const express = require("express");
 const helmet = require("helmet");
 const cors = require("cors");
+const { corsOptions } = require("./config/cors");
 const morgan = require("morgan");
 const compression = require("compression");
 const cookieParser = require("cookie-parser");
@@ -38,19 +39,9 @@ app.use(
   }),
 );
 app.disable("x-powered-by");
-const corsOrigin = process.env.CORS_ORIGIN || "*";
-
-app.use(
-  cors({
-    origin:
-      corsOrigin === "*" ? true : corsOrigin.split(",").map((o) => o.trim()),
-    credentials: false, // testing
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
-
-app.options("*", cors());
+// Origin allowlist + credentials, shared with Socket.IO (config/cors.js).
+// app.use(cors()) also answers every preflight (OPTIONS) request.
+app.use(cors(corsOptions));
 app.use(xss()); // Sanitize user input to prevent XSS
 app.use(hpp()); // Prevent HTTP parameter pollution
 app.use(globalLimiter);

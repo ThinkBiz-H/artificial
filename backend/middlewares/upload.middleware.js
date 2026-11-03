@@ -84,3 +84,12 @@ module.exports.categoryBannerFields = categoryBannerFields;
 module.exports.heroSlideFields = heroSlideFields;
 module.exports.reelFields = reelFields;
 module.exports.imageUpload = imageUpload;
+
+// Brand Management logos: raster images plus SVG and ICO (favicons), 5MB.
+const BRAND_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon"];
+module.exports.brandUpload = multer({
+  storage,
+  fileFilter: (req, file, cb) =>
+    BRAND_TYPES.includes(file.mimetype) ? cb(null, true) : cb(new ApiError(400, "Logos must be PNG, JPG, WebP, SVG or ICO"), false),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+});

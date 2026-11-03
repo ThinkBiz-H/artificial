@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -8,12 +9,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../firebase_options.dart';
 import '../config/app_config.dart';
 
 /// Background isolate entry point — must be a top-level function.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  // Notification messages are drawn by the system in the background and when
+  // the app is closed; this isolate only needs Firebase initialised.
+  await _initFirebaseApp();
+}
+
+/// Initialises Firebase once (a second call in the same isolate is a no-op).
+Future<FirebaseApp> _initFirebaseApp() async {
+  if (Firebase.apps.isNotEmpty) return Firebase.app();
+  final options = DefaultFirebaseOptions.currentPlatform;
+  return options == null ? Firebase.initializeApp() : Firebase.initializeApp(options: options);
 }
 
 /// FCM + local notifications. If Firebase is not configured
@@ -39,7 +50,7 @@ class PushNotificationService {
     // Web needs explicit FirebaseOptions, which this project doesn't ship.
     if (kIsWeb) return false;
     try {
-      await Firebase.initializeApp();
+      await _initFirebaseApp();
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       return true;
     } catch (e) {
@@ -53,7 +64,7 @@ class PushNotificationService {
     try {
       await _local.initialize(
         const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          android: AndroidInitializationSettings('@drawable/ic_stat_notification'),
           iOS: DarwinInitializationSettings(
             requestAlertPermission: false,
             requestBadgePermission: false,
@@ -139,6 +150,24 @@ class PushNotificationService {
     }
   }
 
+  /// Subscribes (or unsubscribes) this install to the campaign topics.
+  Future<void> setTopicSubscriptions(bool enabled) async {
+    if (!_initialized) return;
+    final messaging = FirebaseMessaging.instance;
+    for (final topic in AppConfig.pushTopics) {
+      try {
+        if (enabled) {
+          await messaging.subscribeToTopic(topic);
+        } else {
+          await messaging.unsubscribeFromTopic(topic);
+        }
+      } catch (e) {
+        // iOS before an APNs token exists, or offline — retried on next launch.
+        debugPrint('Topic $topic ${enabled ? "subscribe" : "unsubscribe"} failed: $e');
+      }
+    }
+  }
+
   Future<void> deleteToken() async {
     if (!_initialized) return;
     try {
@@ -146,27 +175,76 @@ class PushNotificationService {
     } catch (_) {}
   }
 
-  void _handleForeground(RemoteMessage message) {
+  /// Recently shown message ids — FCM can redeliver a message; show it once.
+  final List<String> _recentIds = <String>[];
+
+  Future<void> _handleForeground(RemoteMessage message) async {
+    final id = message.messageId;
+    if (id != null) {
+      if (_recentIds.contains(id)) return;
+      _recentIds.add(id);
+      if (_recentIds.length > 50) _recentIds.removeAt(0);
+    }
     _foreground.add(message);
     // iOS presents foreground notifications natively (presentation options).
     if (!Platform.isAndroid) return;
     final notification = message.notification;
     if (notification == null) return;
-    _local.show(
+    // Rich notification: the system draws images itself in the background;
+    // in the foreground we download it and use a big-picture style.
+    final imageUrl = notification.android?.imageUrl ?? message.data['imageUrl']?.toString();
+    final picture = imageUrl == null || imageUrl.isEmpty ? null : await _downloadImage(imageUrl);
+    await _local.show(
       message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch ~/ 1000,
       notification.title,
       notification.body,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           AppConfig.notificationChannelId,
           AppConfig.notificationChannelName,
           channelDescription: AppConfig.notificationChannelDescription,
           importance: Importance.high,
           priority: Priority.high,
-          color: Color(0xFF5A1E36),
+          color: const Color(0xFF5A1E36),
+          icon: '@drawable/ic_stat_notification',
+          playSound: true,
+          enableVibration: true,
+          number: int.tryParse('${message.data['badge'] ?? ''}'),
+          largeIcon: picture == null ? null : ByteArrayAndroidBitmap(picture),
+          styleInformation: picture == null
+              ? BigTextStyleInformation(notification.body ?? '')
+              : BigPictureStyleInformation(
+                  ByteArrayAndroidBitmap(picture),
+                  hideExpandedLargeIcon: true,
+                  contentTitle: notification.title,
+                  summaryText: notification.body,
+                ),
         ),
       ),
       payload: jsonEncode(message.data),
     );
+  }
+
+  /// Fetches a notification image (https only, 6s budget). Null on any failure
+  /// — the notification is then shown without it.
+  Future<Uint8List?> _downloadImage(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.scheme != 'https') return null;
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+    try {
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 6));
+      final response = await request.close().timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200) return null;
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response.timeout(const Duration(seconds: 6))) {
+        builder.add(chunk);
+        if (builder.length > 5 * 1024 * 1024) return null; // keep it small
+      }
+      return builder.takeBytes();
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
   }
 }

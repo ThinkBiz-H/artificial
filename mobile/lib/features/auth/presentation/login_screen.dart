@@ -68,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: AppSpacing.md),
-                const Center(child: BrandLogo(height: 40)),
+                const Center(child: BrandLogo(height: 40, slot: BrandSlots.login)),
                 const SizedBox(height: AppSpacing.xxl),
                 Text(state.needsName ? 'Create your account' : 'Welcome',
                     style: text.displaySmall, textAlign: TextAlign.center),

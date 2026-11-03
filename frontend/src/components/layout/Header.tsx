@@ -235,7 +235,7 @@ export function Header() {
         className={cn(
           // Same height in both states — only the surface changes, so nothing below shifts.
           "sticky top-0 z-[900] w-full border-b transition-[background-color,box-shadow,border-color] duration-500 ease-luxe",
-          transparent ? "border-transparent bg-transparent" : "border-border/80 bg-canvas/95 shadow-soft backdrop-blur-md",
+          transparent ? "border-transparent bg-transparent" : "border-border/80 bg-header/95 shadow-soft backdrop-blur-md",
         )}
         data-transparent={transparent || undefined}
       >

@@ -18,6 +18,12 @@ const getSettings = async ({ bypassCache = false } = {}) => {
   return settings;
 };
 
+/** Drops this instance's short-lived copy (another instance changed the settings). */
+const clearCache = () => {
+  cache = null;
+  cacheExpiresAt = 0;
+};
+
 const updateSettings = async (patch, userId) => {
   const settings = await getSettings({ bypassCache: true });
 
@@ -77,4 +83,5 @@ const isMaintenanceModeActive = async () => {
   return !!settings.maintenanceMode?.enabled;
 };
 
-module.exports = { getSettings, updateSettings, getEnvironmentStatus, isMaintenanceModeActive };
+module.exports = {
+  clearCache, getSettings, updateSettings, getEnvironmentStatus, isMaintenanceModeActive };

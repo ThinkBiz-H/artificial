@@ -32,7 +32,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.swastikala.app"
+        applicationId = "com.abjjewellery.app" // must match google-services.json
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

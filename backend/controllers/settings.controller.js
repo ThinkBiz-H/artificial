@@ -7,6 +7,7 @@ const {
   deleteFromCloudinary,
 } = require("../services/cloudinary.service");
 const { invalidate } = require("../services/cache.service");
+const { publicBrand } = require("../services/brand.service");
 
 // @desc    Public-safe subset of settings, for the storefront (branding,
 //          currency, tax display, contact/social, maintenance banner).
@@ -51,6 +52,8 @@ const getPublicSettings = asyncHandler(async (req, res) => {
     appVersion: s.appVersion,
     logo: s.logo,
     favicon: s.favicon,
+    // Brand Management: resolved logos per slot, theme, company, social.
+    brand: publicBrand(settings),
     maintenanceMode: {
       enabled: s.maintenanceMode.enabled,
       message: s.maintenanceMode.message,

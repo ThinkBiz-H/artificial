@@ -12,6 +12,10 @@ const {
 } = require('../controllers/notification.controller');
 
 const { protect } = require('../middlewares/auth.middleware');
+const { reportOpened } = require('../controllers/notificationCampaign.controller');
+
+// Public: the app reports a notification tap (click analytics) — works signed out too.
+router.post('/campaigns/:id/opened', reportOpened);
 
 router.use(protect);
 

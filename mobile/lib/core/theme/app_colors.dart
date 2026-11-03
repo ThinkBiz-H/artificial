@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Swastikala palette — the website's design tokens (frontend/src/index.css).
+/// Abj Jewellery palette — the website's design tokens (frontend/src/index.css).
 class AppColors {
   AppColors._();
 

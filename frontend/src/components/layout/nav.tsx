@@ -26,18 +26,18 @@ export const SHOP_LINKS = {
 
 export const BRAND_TAGLINE = "Premium Artificial Jewellery";
 
-/** Store logo + wordmark (Admin > Settings). `tagline` adds the italic line beneath, as in the header. */
+/** Store logo — the image already carries the brand name, so no text wordmark beside it. `tagline` adds the italic line beneath, as in the header. */
 export function Brand({ className, tagline = false }: { className?: string; tagline?: boolean }) {
   const { siteName, logo } = useStoreInfo();
   return (
     <Link to="/" className={cn("flex min-w-0 flex-col items-center", className)} aria-label={`${siteName} home`}>
-      <span className="flex min-w-0 items-center gap-2 sm:gap-3">
-        {logo && <img src={logo} alt="" width={40} height={40} className="h-7 w-7 flex-none object-contain sm:h-9 sm:w-9 lg:h-10 lg:w-10" />}
-        {/* Negative right margin offsets the trailing letter-spacing so the wordmark centres optically. */}
-        <span className="-mr-[0.3em] truncate font-display text-xl font-semibold uppercase leading-none tracking-[0.22em] text-fg sm:text-[28px] sm:tracking-[0.3em] lg:text-[32px]">
-          {siteName}
-        </span>
-      </span>
+      <img
+        src={logo}
+        alt={siteName}
+        width={1264}
+        height={843}
+        className="h-12 w-auto max-w-full flex-none object-contain sm:h-14 lg:h-16"
+      />
       {tagline && (
         <span className="mt-1.5 hidden whitespace-nowrap font-sub text-[11px] tracking-[0.16em] text-accent sm:block">{BRAND_TAGLINE}</span>
       )}

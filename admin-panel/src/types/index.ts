@@ -400,6 +400,11 @@ export interface Blog {
   status: "draft" | "published" | "scheduled";
   publishedAt?: string;
   viewCount?: number;
+  likeCount?: number;
+  readingTime?: number | null;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  faqs?: { question: string; answer: string }[];
   seo?: BlogSeo;
   createdAt: string;
 }
@@ -593,6 +598,10 @@ export interface NotificationTemplate {
   subject?: string;
   body: string;
   isActive: boolean;
+  /** Push presets for the Notification Center composer. */
+  name?: string;
+  imageUrl?: string;
+  link?: string;
 }
 
 // ---- Audit log ----

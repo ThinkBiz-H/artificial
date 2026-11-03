@@ -28,7 +28,7 @@ class SessionsScreen extends ConsumerWidget {
 
   String _label(String ua) {
     final s = ua.toLowerCase();
-    if (s.contains('swastikalaapp')) return 'Swastikala app';
+    if (s.contains('swastikalaapp')) return 'Abj Jewellery app';
     if (s.contains('iphone')) return 'iPhone · Browser';
     if (s.contains('android')) return 'Android · Browser';
     if (s.contains('windows')) return 'Windows · Browser';

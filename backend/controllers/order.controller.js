@@ -335,7 +335,10 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         order.tracking.lastAttemptNote = note || "Delivery attempt failed";
     }
 
-    if (["Cancelled", "Returned", "Refunded"].includes(orderStatus)) {
+    // Refunded is only reachable from Cancelled/Returned, which already
+    // restored the stock (restoreStock is ledger-driven, so this is also
+    // safe against repeats).
+    if (["Cancelled", "Returned"].includes(orderStatus)) {
       await restoreStock(order.items, {
         orderId: order._id,
         performedBy: req.user._id,

@@ -42,7 +42,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     final ok = await ref.read(otpVerifyProvider.notifier).verifyLogin(widget.args, code);
     if (!mounted) return;
     if (ok) {
-      context.showSnack('Welcome to Swastikala');
+      context.showSnack('Welcome to Abj Jewellery');
       final target = widget.args.redirectTo;
       if (target != null && target.isNotEmpty && target != RoutePaths.login) {
         context.go(target);

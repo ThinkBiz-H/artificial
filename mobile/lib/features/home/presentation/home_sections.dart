@@ -623,7 +623,7 @@ class HomeProductRail extends StatelessWidget {
   }
 }
 
-final _categoryProductsProvider = FutureProvider.autoDispose.family<List<ProductModel>, String>((ref, categoryId) async {
+final categoryProductsProvider = FutureProvider.autoDispose.family<List<ProductModel>, String>((ref, categoryId) async {
   final page = await ref.watch(catalogRepositoryProvider).products(ProductQuery(categoryId: categoryId), limit: 4);
   return page.items;
 });
@@ -650,7 +650,7 @@ class CollectionFeature extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = category;
     if (c == null) return const SizedBox.shrink();
-    final products = ref.watch(_categoryProductsProvider(c.id)).valueOrNull ?? const <ProductModel>[];
+    final products = ref.watch(categoryProductsProvider(c.id)).valueOrNull ?? const <ProductModel>[];
     if (products.isEmpty) return const SizedBox.shrink();
     final image = _hasImage(c) ? c.image!.url : products.first.primaryImage;
     final title = c.name.toLowerCase().contains('collection') ? c.name : '${c.name} Collection';

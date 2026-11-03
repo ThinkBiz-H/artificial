@@ -46,6 +46,10 @@ const { protect, authorize } = require("../middlewares/auth.middleware");
 const { requirePermission } = require("../middlewares/permission.middleware");
 const upload = require("../middlewares/upload.middleware");
 const validate = require("../middlewares/validate.middleware");
+const { cacheMiddleware } = require("../services/cache.service");
+// Product data is written from many places (admin, orders, inventory), so it is
+// only cached while live invalidation (liveSync.service) is running.
+const live = { requiresLiveSync: true };
 const {
   createProductValidator,
   updateProductValidator,
@@ -95,12 +99,12 @@ const {
  *                       type: array
  *                       items: { $ref: '#/components/schemas/Product' }
  */
-router.get("/", getProducts);
-router.get("/featured/list", getFeaturedProducts);
-router.get("/new-arrivals/list", getNewArrivals);
-router.get("/trending/list", getTrendingProducts);
-router.get("/bestsellers/list", getBestSellers);
-router.get("/top-rated/list", getTopRatedProducts);
+router.get("/", cacheMiddleware("products", 120, live), getProducts);
+router.get("/featured/list", cacheMiddleware("products", 120, live), getFeaturedProducts);
+router.get("/new-arrivals/list", cacheMiddleware("products", 120, live), getNewArrivals);
+router.get("/trending/list", cacheMiddleware("products", 120, live), getTrendingProducts);
+router.get("/bestsellers/list", cacheMiddleware("products", 120, live), getBestSellers);
+router.get("/top-rated/list", cacheMiddleware("products", 120, live), getTopRatedProducts);
 
 // Recently viewed (must come before /:slug — "me" would otherwise be read as a slug)
 router.get("/me/recently-viewed", protect, getRecentlyViewed);
@@ -137,19 +141,19 @@ router.delete(
 );
 
 // Related products (by id)
-router.get("/:id/related", getRelatedProducts);
-router.get("/:id/related-by-brand", getRelatedProductsByBrand);
+router.get("/:id/related", cacheMiddleware("products", 120, live), getRelatedProducts);
+router.get("/:id/related-by-brand", cacheMiddleware("products", 120, live), getRelatedProductsByBrand);
 router.post("/:id/view", protect, trackProductView);
 
 // Reviews (verified purchase only)
-router.get("/:id/reviews", getReviews);
-router.get("/:id/reviews/rating-distribution", getRatingDistribution);
+router.get("/:id/reviews", cacheMiddleware("products", 120, live), getReviews);
+router.get("/:id/reviews/rating-distribution", cacheMiddleware("products", 120, live), getRatingDistribution);
 router.post("/:id/reviews", protect, requireFeature("reviews", "Reviews are currently closed."), addReview);
 router.put("/:id/reviews/:reviewId", protect, editReview);
 router.delete("/:id/reviews/:reviewId", protect, deleteReview);
 
 // Variants (Phase 5) — nested under a product
-router.get("/:productId/variants", getVariants);
+router.get("/:productId/variants", cacheMiddleware("products", 120, live), getVariants);
 router.post(
   "/:productId/variants",
   protect,
@@ -179,7 +183,7 @@ router.delete(
 );
 
 // Public single product by slug - keep last so it doesn't shadow the routes above
-router.get("/id/:id", getProductById);
-router.get("/:slug", getProductBySlug);
+router.get("/id/:id", cacheMiddleware("products", 120, live), getProductById);
+router.get("/:slug", cacheMiddleware("products", 120, live), getProductBySlug);
 
 module.exports = router;

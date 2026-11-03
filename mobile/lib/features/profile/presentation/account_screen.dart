@@ -71,7 +71,7 @@ class AccountScreen extends ConsumerWidget {
           _Group(title: 'Help & information', tiles: [
             _Tile(Icons.support_agent_outlined, 'Help & support', onTap: () => context.push(RoutePaths.support)),
             _Tile(Icons.mail_outline_rounded, 'Contact us', onTap: () => context.push(RoutePaths.contact)),
-            _Tile(Icons.info_outline_rounded, 'About Swastikala', onTap: () => context.push(RoutePaths.page('about'))),
+            _Tile(Icons.info_outline_rounded, 'About Abj Jewellery', onTap: () => context.push(RoutePaths.page('about'))),
             _Tile(Icons.local_shipping_outlined, 'Shipping policy',
                 onTap: () => context.push(RoutePaths.page('shipping'))),
             _Tile(Icons.assignment_return_outlined, 'Refund policy',
@@ -89,7 +89,7 @@ class AccountScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: AppSpacing.md),
-          const Center(child: BrandWordmark(size: 14)),
+          const Center(child: BrandWordmark(size: 14, slot: BrandSlots.app)),
           const SizedBox(height: 4),
           Center(child: Text(AppConfig.tagline, style: context.text.bodySmall)),
         ],
@@ -159,7 +159,7 @@ class _GuestHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Welcome to Swastikala', style: context.text.headlineMedium?.copyWith(color: Colors.white)),
+          Text('Welcome to Abj Jewellery', style: context.text.headlineMedium?.copyWith(color: Colors.white)),
           const SizedBox(height: 4),
           const Text('Login to track orders, sync your wishlist and check out faster.',
               style: TextStyle(color: AppColors.champagne)),

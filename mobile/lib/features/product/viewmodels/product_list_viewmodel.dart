@@ -53,8 +53,20 @@ class ProductListState {
 
 /// Paginated GET /products for any [ProductQuery] (infinite scroll).
 class ProductListNotifier extends AutoDisposeFamilyAsyncNotifier<ProductListState, ProductQuery> {
+  /// Lists currently on screen — realtime updates refresh these in place.
+  static final Set<ProductListNotifier> _live = <ProductListNotifier>{};
+
+  /// Refreshes every list currently on screen (see [syncLoaded]).
+  static void syncAllLoaded() {
+    for (final list in _live.toList()) {
+      list.syncLoaded();
+    }
+  }
+
   @override
   Future<ProductListState> build(ProductQuery arg) async {
+    _live.add(this);
+    ref.onDispose(() => _live.remove(this));
     final page = await ref.watch(catalogRepositoryProvider).products(arg, page: 1);
     return ProductListState(items: page.items, pagination: page.pagination);
   }
@@ -76,6 +88,32 @@ class ProductListNotifier extends AutoDisposeFamilyAsyncNotifier<ProductListStat
     } catch (e) {
       state = AsyncData(current.copyWith(loadingMore: false, loadMoreError: e));
     }
+  }
+
+  /// Realtime: refreshes the products already on screen (prices, stock,
+  /// images…) in one request without resetting pagination or scroll position.
+  /// On failure the current list simply stays as it is.
+  Future<void> syncLoaded() async {
+    final current = state.valueOrNull;
+    if (current == null || current.loadingMore || current.items.isEmpty) return;
+    final count = current.items.length.clamp(AppConfig.pageSize, 100);
+    try {
+      final fresh = await ref.read(catalogRepositoryProvider).products(arg, page: 1, limit: count);
+      final latest = state.valueOrNull;
+      // A loadMore() that ran meanwhile wins; the next event syncs again.
+      if (latest == null || latest.items.length != current.items.length || latest.loadingMore) return;
+      final total = fresh.pagination.total;
+      // Beyond the first 100, keep the rest of what's loaded as it was.
+      final freshIds = fresh.items.map((p) => p.id).toSet();
+      final tail = latest.items.skip(count).where((p) => !freshIds.contains(p.id));
+      state = AsyncData(latest.copyWith(
+        items: [...fresh.items, ...tail],
+        pagination: latest.pagination.copyWith(
+          total: total,
+          totalPages: (total / AppConfig.pageSize).ceil(),
+        ),
+      ));
+    } catch (_) {}
   }
 }
 

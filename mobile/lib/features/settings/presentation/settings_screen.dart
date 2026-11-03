@@ -30,6 +30,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final storage = ref.read(localStorageProvider);
     await storage.setPushEnabled(value);
     final registration = ref.read(pushRegistrationProvider);
+    // Campaign topics apply to signed-out installs too.
+    await ref.read(pushServiceProvider).setTopicSubscriptions(value);
     if (!ref.read(isAuthenticatedProvider)) return;
     if (value) {
       await registration.register();

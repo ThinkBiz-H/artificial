@@ -63,6 +63,7 @@ dependencies:
 
   # Utils
   intl: ^0.20.2
+  socket_io_client: ^3.1.6
 
 dev_dependencies:
   flutter_test:
@@ -78,4 +79,5 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/logo/
     - assets/lottie/

@@ -48,7 +48,7 @@ void main() {
         pushServiceProvider.overrideWithValue(push),
         initialUserProvider.overrideWithValue(initialUser),
       ],
-      child: const SwastikalaApp(),
+      child: const AbjJewelleryApp(),
     ));
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error');

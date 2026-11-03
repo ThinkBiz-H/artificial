@@ -6,14 +6,18 @@ import { useEffect } from "react";
 import { router } from "@/routes";
 import { tryRestoreSession } from "@/hooks/useAuth";
 import { queryClient } from "@/lib/queryClient";
+import { useRealtime } from "@/hooks/useRealtime";
+import { BrandTheme } from "@/components/common/BrandTheme";
 
 function App() {
   useEffect(() => {
     tryRestoreSession();
   }, []);
+  useRealtime();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <BrandTheme />
       <RouterProvider router={router} />
       <Toaster
         position="bottom-center"

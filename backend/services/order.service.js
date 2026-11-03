@@ -1,7 +1,10 @@
 const ApiError = require("../utils/ApiError");
 const Product = require("../models/Product");
 const Variant = require("../models/Variant");
+const mongoose = require("mongoose");
 const inventoryService = require("./inventory.service");
+const StockMovement = require("../models/StockMovement");
+const Warehouse = require("../models/Warehouse");
 const { resolveItemOptions, resolveItemImage } = require("../utils/itemOptions");
 
 /**
@@ -221,17 +224,47 @@ const restoreStock = async (
   { orderId = null, performedBy = null, session = null } = {},
 ) => {
   for (const item of orderItems) {
+    let quantity = item.quantity;
+    let warehouseId = null;
+
+    // Ledger-driven and idempotent: give back only what this order actually
+    // took (its "sale" movements) minus what was already given back
+    // ("return" movements), to the warehouse it came from. So a refund after
+    // a cancellation/return, a retried request, or cancelling an unpaid
+    // online order (never deducted) can never inflate stock.
+    if (orderId) {
+      const match = {
+        referenceType: "order",
+        referenceId: new mongoose.Types.ObjectId(String(orderId)),
+        product: new mongoose.Types.ObjectId(String(item.product)),
+        variant: item.variant ? new mongoose.Types.ObjectId(String(item.variant)) : null,
+      };
+      const ledger = await StockMovement.aggregate([
+        { $match: { ...match, type: { $in: ["sale", "return"] } } },
+        { $group: { _id: { type: "$type", warehouse: "$warehouse" }, qty: { $sum: "$quantity" } } },
+      ]).session(session);
+      const sold = ledger.filter((l) => l._id.type === "sale");
+      const soldQty = -sold.reduce((sum, l) => sum + l.qty, 0);
+      const returnedQty = ledger.filter((l) => l._id.type === "return").reduce((sum, l) => sum + l.qty, 0);
+      quantity = Math.min(item.quantity, soldQty - returnedQty);
+      if (quantity <= 0) continue;
+      warehouseId = sold.sort((x, y) => x.qty - y.qty)[0]?._id.warehouse || null; // where most of it came from
+      // That warehouse may have been deactivated since — then use the default.
+      if (warehouseId && !(await Warehouse.exists({ _id: warehouseId, status: "active" }).session(session))) warehouseId = null;
+    }
+
     await inventoryService.restoreForOrderCancellation({
       productId: item.product,
       variantId: item.variant || null,
-      quantity: item.quantity,
+      quantity,
       orderId,
       performedBy,
       session,
+      warehouseId,
     });
     await Product.findByIdAndUpdate(
       item.product,
-      { $inc: { salesCount: -item.quantity } },
+      { $inc: { salesCount: -quantity } },
       { session },
     );
   }

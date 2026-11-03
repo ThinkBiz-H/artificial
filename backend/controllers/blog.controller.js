@@ -23,21 +23,31 @@ const PUBLIC_VISIBILITY_FILTER = {
 // @desc    List public blog posts — search, filter by category/tag, paginated
 // @route   GET /api/v1/blogs?keyword=&category=&tag=&page=&limit=
 // @access  Public
+// Sort options for the journal (default: newest first).
+const PUBLIC_SORTS = {
+  latest: "-publishedAt",
+  popular: "-viewCount -likeCount -publishedAt",
+  trending: "-isTrending -viewCount -publishedAt",
+  liked: "-likeCount -publishedAt",
+};
+
 const getPublicBlogs = asyncHandler(async (req, res) => {
-  const { keyword, category, tag, page = 1, limit = 10 } = req.query;
+  const { keyword, category, tag, page = 1, limit = 10, sort, featured, trending } = req.query;
 
   const filter = { ...PUBLIC_VISIBILITY_FILTER };
   if (keyword) filter.$text = { $search: keyword };
   if (category) filter.category = category;
   if (tag) filter.tags = tag;
+  if (featured === "true") filter.isFeatured = true;
+  if (trending === "true") filter.isTrending = true;
 
   const skip = (Number(page) - 1) * Number(limit);
   const [blogs, total] = await Promise.all([
     Blog.find(filter)
       .select("-content")
       .populate("category", "name slug")
-      .populate("author", "name")
-      .sort("-publishedAt")
+      .populate("author", "name profileImage")
+      .sort(PUBLIC_SORTS[sort] || PUBLIC_SORTS.latest)
       .skip(skip)
       .limit(Number(limit)),
     Blog.countDocuments(filter),
@@ -62,8 +72,8 @@ const getPublicBlogBySlug = asyncHandler(async (req, res) => {
     { new: true },
   )
     .populate("category", "name slug")
-    .populate("author", "name")
-    .populate("relatedBlogs", "title slug excerpt featuredImage publishedAt");
+    .populate("author", "name profileImage")
+    .populate("relatedBlogs", "title slug excerpt featuredImage publishedAt readingTime category viewCount");
 
   if (!blog) throw new ApiError(404, "Blog post not found");
 
@@ -75,17 +85,78 @@ const getPublicBlogBySlug = asyncHandler(async (req, res) => {
           category: blog.category,
           _id: { $ne: blog._id },
         })
-          .select("title slug excerpt featuredImage publishedAt")
+          .select("title slug excerpt featuredImage publishedAt readingTime category viewCount")
           .limit(4)
       : [];
   }
 
-  sendResponse(res, 200, { blog, related }, "Blog post fetched successfully");
+  // Previous (older) and next (newer) published posts for in-article navigation.
+  const navFields = "title slug featuredImage publishedAt readingTime";
+  const [prev, next] = await Promise.all([
+    Blog.findOne({ ...PUBLIC_VISIBILITY_FILTER, publishedAt: { $lt: blog.publishedAt } }).sort("-publishedAt").select(navFields).lean(),
+    Blog.findOne({ ...PUBLIC_VISIBILITY_FILTER, publishedAt: { $gt: blog.publishedAt } }).sort("publishedAt").select(navFields).lean(),
+  ]);
+
+  sendResponse(res, 200, { blog, related, prev, next }, "Blog post fetched successfully");
 });
 
 // @desc    List blog categories
 // @route   GET /api/v1/blogs/categories
 // @access  Public
+// @desc    Journal highlights: featured, trending and popular posts, popular
+//          tags and category counts — one request for the journal landing page.
+// @route   GET /api/v1/blogs/highlights
+// @access  Public
+const getBlogHighlights = asyncHandler(async (req, res) => {
+  const card = "-content";
+  const base = () => Blog.find(PUBLIC_VISIBILITY_FILTER).select(card).populate("category", "name slug").populate("author", "name profileImage");
+  const [featured, trending, popular, tags, categoryCounts] = await Promise.all([
+    base().where({ isFeatured: true }).sort("-publishedAt").limit(6),
+    base().sort(PUBLIC_SORTS.trending).limit(6),
+    base().sort(PUBLIC_SORTS.popular).limit(6),
+    Blog.aggregate([
+      { $match: PUBLIC_VISIBILITY_FILTER },
+      { $unwind: "$tags" },
+      { $group: { _id: { $toLower: "$tags" }, tag: { $first: "$tags" }, count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+      { $limit: 20 },
+    ]),
+    Blog.aggregate([{ $match: { ...PUBLIC_VISIBILITY_FILTER, category: { $ne: null } } }, { $group: { _id: "$category", count: { $sum: 1 } } }]),
+  ]);
+  sendResponse(res, 200, {
+    featured,
+    trending,
+    popular,
+    tags: tags.map((t) => ({ tag: t.tag, count: t.count })),
+    categoryCounts: Object.fromEntries(categoryCounts.map((c) => [String(c._id), c.count])),
+  }, "Journal highlights fetched successfully");
+});
+
+// @desc    Like / unlike a post (the browser remembers its own like)
+// @route   POST /api/v1/blogs/:slug/like  { liked: boolean }
+// @access  Public (rate limited)
+const likeBlog = asyncHandler(async (req, res) => {
+  const liked = req.body?.liked !== false;
+  const filter = { slug: req.params.slug, ...PUBLIC_VISIBILITY_FILTER, ...(liked ? {} : { likeCount: { $gt: 0 } }) };
+  const blog = await Blog.findOneAndUpdate(filter, { $inc: { likeCount: liked ? 1 : -1 } }, { new: true, timestamps: false }).select("likeCount").lean();
+  if (!blog) {
+    const exists = await Blog.exists({ slug: req.params.slug, ...PUBLIC_VISIBILITY_FILTER });
+    if (!exists) throw new ApiError(404, "Blog post not found");
+  }
+  const current = blog || (await Blog.findOne({ slug: req.params.slug }).select("likeCount").lean());
+  sendResponse(res, 200, { likeCount: current?.likeCount || 0, liked }, liked ? "Liked" : "Like removed");
+});
+
+/** One-time fill of readingTime for posts saved before it existed (idempotent). */
+const backfillReadingTimes = async () => {
+  const missing = await Blog.find({ readingTime: null }).select("content").lean();
+  if (!missing.length) return 0;
+  await Blog.bulkWrite(
+    missing.map((b) => ({ updateOne: { filter: { _id: b._id }, update: { $set: { readingTime: Blog.computeReadingTime(b.content) } }, timestamps: false } })),
+  );
+  return missing.length;
+};
+
 const getBlogCategories = asyncHandler(async (req, res) => {
   const categories = await BlogCategory.find({ status: "active" }).sort("name");
   sendResponse(
@@ -183,6 +254,22 @@ const parseArrayField = (raw) => {
   }
 };
 
+/** Multipart sends booleans as strings. */
+const parseBool = (v) => (v === undefined ? undefined : v === true || v === "true" || v === "1");
+
+/** FAQ list (JSON string in multipart): [{ question, answer }], max 20, blanks dropped. */
+const parseFaqs = (raw) => {
+  if (raw === undefined) return undefined;
+  const list = parseJsonObject(raw, "faqs");
+  if (!Array.isArray(list)) throw new ApiError(400, "faqs must be a list of { question, answer }");
+  const faqs = list
+    .map((f) => ({ question: String(f?.question ?? "").trim(), answer: String(f?.answer ?? "").trim() }))
+    .filter((f) => f.question && f.answer);
+  if (faqs.length > 20) throw new ApiError(400, "At most 20 FAQs per post");
+  if (faqs.some((f) => f.question.length > 300 || f.answer.length > 3000)) throw new ApiError(400, "FAQ questions are limited to 300 characters and answers to 3000");
+  return faqs;
+};
+
 // @desc    Create a blog post
 // @route   POST /api/v1/admin/blogs
 // @access  Private/Admin
@@ -212,6 +299,9 @@ const createBlog = asyncHandler(async (req, res) => {
     seo,
     featuredImage,
     author: req.user._id,
+    isFeatured: parseBool(req.body.isFeatured) ?? false,
+    isTrending: parseBool(req.body.isTrending) ?? false,
+    faqs: parseFaqs(req.body.faqs) ?? [],
   });
 
   sendResponse(res, 201, { blog }, "Blog post created successfully");
@@ -249,6 +339,12 @@ const updateBlog = asyncHandler(async (req, res) => {
   if (relatedBlogs !== undefined) blog.relatedBlogs = relatedBlogs;
   const seo = parseSeo(req.body.seo);
   if (seo !== undefined) blog.seo = { ...blog.seo.toObject(), ...seo };
+  const isFeatured = parseBool(req.body.isFeatured);
+  if (isFeatured !== undefined) blog.isFeatured = isFeatured;
+  const isTrending = parseBool(req.body.isTrending);
+  if (isTrending !== undefined) blog.isTrending = isTrending;
+  const faqs = parseFaqs(req.body.faqs);
+  if (faqs !== undefined) blog.faqs = faqs;
 
   await blog.save();
   sendResponse(res, 200, { blog }, "Blog post updated successfully");
@@ -331,6 +427,9 @@ module.exports = {
   getPublicBlogs,
   getPublicBlogBySlug,
   getBlogCategories,
+  getBlogHighlights,
+  likeBlog,
+  backfillReadingTimes,
   getAllBlogs,
   getBlogById,
   createBlog,

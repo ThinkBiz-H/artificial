@@ -9,7 +9,7 @@ const seedSettings = async () => {
   }
 
   const settings = await Settings.create({
-    general: { siteName: 'My Store', supportEmail: 'support@example.com' },
+    general: { siteName: 'Abj Jewellery', supportEmail: 'support@example.com' },
   });
 
   logger.info('Default settings seeded');

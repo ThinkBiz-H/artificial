@@ -4,7 +4,7 @@ import 'json_converters.dart';
 /// GET /settings — settings.controller.js#getPublicSettings.
 class PublicSettings {
   const PublicSettings({
-    this.siteName = 'Swastikala',
+    this.siteName = 'Abj Jewellery',
     this.siteTagline = '',
     this.supportEmail = '',
     this.supportPhone = '',
@@ -26,7 +26,21 @@ class PublicSettings {
     this.logo,
     this.maintenanceEnabled = false,
     this.maintenanceMessage = '',
+    this.brandLogos = const <String, String>{},
+    this.brandRevision = 0,
   });
+
+  /// Brand Management (admin): logo URL per slot with fallbacks already
+  /// applied by the server — e.g. 'splashLogo', 'loginLogo', 'appBarLogo'.
+  /// Missing/empty = use the bundled logo.
+  final Map<String, String> brandLogos;
+  final int brandRevision;
+
+  /// Logo URL for a brand slot, or null when the bundled logo should be used.
+  String? brandLogo(String slot) {
+    final url = brandLogos[slot];
+    return url == null || url.isEmpty ? null : url;
+  }
 
   final String siteName;
   final String siteTagline;
@@ -74,11 +88,16 @@ class PublicSettings {
     final socialRaw = dynamicMapFromJson(json['social']);
     final flagsRaw = dynamicMapFromJson(json['featureFlags']);
     final tax = dynamicMapFromJson(json['tax']);
+    final brand = dynamicMapFromJson(json['brand']);
+    final brandCompany = dynamicMapFromJson(brand['company']);
+    final brandName = stringFromJson(brandCompany['brandName']);
 
     return PublicSettings(
-      siteName: stringFromJson(general['siteName']).isEmpty
-          ? 'Swastikala'
-          : stringFromJson(general['siteName']),
+      siteName: brandName.isNotEmpty
+          ? brandName
+          : stringFromJson(general['siteName']).isEmpty
+              ? 'Abj Jewellery'
+              : stringFromJson(general['siteName']),
       siteTagline: stringFromJson(general['siteTagline']),
       supportEmail: stringFromJson(general['supportEmail']),
       supportPhone: stringFromJson(general['supportPhone']),
@@ -105,6 +124,9 @@ class PublicSettings {
       logo: imageFromJson(json['logo']),
       maintenanceEnabled: boolFromJson(maintenance['enabled']),
       maintenanceMessage: stringFromJson(maintenance['message']),
+      brandLogos: dynamicMapFromJson(brand['logos']).map((k, v) => MapEntry(k, stringFromJson(v)))
+        ..removeWhere((_, v) => v.isEmpty),
+      brandRevision: intFromJson(brand['revision']),
     );
   }
 
@@ -143,6 +165,11 @@ class PublicSettings {
         'maintenanceMode': {
           'enabled': maintenanceEnabled,
           'message': maintenanceMessage,
+        },
+        'brand': {
+          'logos': brandLogos,
+          'revision': brandRevision,
+          'company': {'brandName': siteName},
         },
       };
 }

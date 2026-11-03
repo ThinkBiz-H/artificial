@@ -205,6 +205,9 @@ class _HomeAppBar extends ConsumerWidget {
       floating: true,
       snap: true,
       titleSpacing: 0,
+      // Taller bar so the brand logo reads clearly (logo is 56px).
+      toolbarHeight: 68,
+      centerTitle: true,
       leading: IconButton(
         tooltip: 'Notifications',
         icon: CountBadge(count: unread, child: const Icon(Icons.notifications_none_rounded)),
@@ -212,7 +215,7 @@ class _HomeAppBar extends ConsumerWidget {
             ? context.push(RoutePaths.notifications)
             : context.push(RoutePaths.loginWithRedirect(RoutePaths.notifications)),
       ),
-      title: const BrandLogo(height: 30),
+      title: const BrandLogo(height: 56, slot: BrandSlots.appBar),
       actions: [
         IconButton(
           tooltip: 'Search',

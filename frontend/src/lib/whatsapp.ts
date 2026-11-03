@@ -12,7 +12,7 @@ export function buildStartChatUrl({
   orderNumber: string;
   customerName: string;
 }): string {
-  const message = `Hello Swastikala Team,
+  const message = `Hello Abj Jewellery Team,
 
 My Order Number is ${orderNumber}.
 

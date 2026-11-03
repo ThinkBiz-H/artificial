@@ -5,7 +5,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/core_providers.dart';
 
 /// The first WhatsApp message (website lib/whatsapp.ts#buildStartChatUrl).
-String startChatMessage({required String orderNumber, required String customerName}) => '''Hello Swastikala Team,
+String startChatMessage({required String orderNumber, required String customerName}) => '''Hello Abj Jewellery Team,
 
 My Order Number is $orderNumber.
 

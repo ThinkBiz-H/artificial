@@ -90,6 +90,7 @@ class ApiEndpoints {
   static String notificationRead(String id) => '/notifications/$id/read';
   static String notification(String id) => '/notifications/$id';
   static const String pushToken = '/notifications/push-token';
+  static String campaignOpened(String id) => '/notifications/campaigns/$id/opened';
 
   // CMS / settings
   static const String settings = '/settings';

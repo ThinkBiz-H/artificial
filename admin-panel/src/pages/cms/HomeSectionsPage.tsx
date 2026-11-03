@@ -20,7 +20,7 @@ import type { HomeSection } from "@/types";
 const SECTION_TYPES: { value: string; label: string }[] = [
   { value: "hero", label: "Hero" },
   { value: "about-preview", label: "Brand Story" },
-  { value: "why-choose", label: "Why Choose Swastikala" },
+  { value: "why-choose", label: "Why Choose Abj Jewellery" },
   { value: "process", label: "Handmade Process" },
   { value: "lifestyle", label: "Lifestyle Banner" },
   { value: "craftsmanship", label: "Our Craftsmanship (row)" },

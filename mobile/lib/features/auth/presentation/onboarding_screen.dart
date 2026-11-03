@@ -64,7 +64,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.xs, 0),
               child: Row(
                 children: [
-                  const BrandWordmark(size: 18),
+                  const BrandWordmark(size: 18, slot: BrandSlots.app),
                   const Spacer(),
                   TextButton(onPressed: _finish, child: const Text('SKIP')),
                 ],

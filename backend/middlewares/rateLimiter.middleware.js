@@ -117,4 +117,17 @@ const contactLimiter =
         message: { success: false, message: "Too many messages sent. Please try again later.", data: null },
       });
 
-module.exports = { globalLimiter, authLimiter, otpLimiter, lookupLimiter, contactLimiter };
+// Public engagement actions (blog likes) — generous, just stops scripted inflation.
+const engagementLimiter =
+  process.env.NODE_ENV === "development"
+    ? (req, res, next) => next()
+    : rateLimit({
+        ...sharedStore("engagement"),
+        windowMs: 15 * 60 * 1000,
+        max: 60,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { success: false, message: "Too many requests. Please try again later.", data: null },
+      });
+
+module.exports = { engagementLimiter, globalLimiter, authLimiter, otpLimiter, lookupLimiter, contactLimiter };

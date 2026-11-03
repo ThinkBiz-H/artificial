@@ -2,6 +2,11 @@ import { apiClient } from "./client";
 import type { ApiEnvelope, Blog, BlogCategory, BlogCategorySeo, BlogSeo } from "@/types";
 import { toFormData } from "@/lib/utils";
 
+export interface BlogFaq {
+  question: string;
+  answer: string;
+}
+
 export interface BlogFormValues {
   title: string;
   slug?: string;
@@ -14,6 +19,9 @@ export interface BlogFormValues {
   publishedAt?: string;
   seo?: BlogSeo;
   featuredImage?: File;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  faqs?: BlogFaq[];
 }
 
 export const blogApi = {

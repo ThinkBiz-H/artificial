@@ -14,6 +14,19 @@ final settingsProvider = FutureProvider<PublicSettings>(
 final settingsValueProvider = Provider<PublicSettings>(
     (ref) => ref.watch(settingsProvider).valueOrNull ?? const PublicSettings());
 
+/// Brand Management logo URLs (admin): live settings once loaded, otherwise
+/// the last cached copy — so the splash screen and offline launches show the
+/// admin's logos too. Empty map = bundled logos everywhere.
+final brandLogosProvider = Provider<Map<String, String>>((ref) {
+  final live = ref.watch(settingsProvider).valueOrNull;
+  if (live != null) return live.brandLogos;
+  final cached = ref.read(localStorageProvider).getCache('settings');
+  if (cached is Map && cached['settings'] is Map) {
+    return PublicSettings.fromJson(Map<String, dynamic>.from(cached['settings'] as Map)).brandLogos;
+  }
+  return const <String, String>{};
+});
+
 /// GET /categories?tree=true
 final categoryTreeProvider = FutureProvider<List<CategoryModel>>(
     (ref) => ref.watch(catalogRepositoryProvider).categoryTree());

@@ -13,6 +13,7 @@ const ContactInquiry = require("../models/ContactInquiry");
 const NotificationJob = require("../models/NotificationJob");
 const Notification = require("../models/Notification");
 const sessionService = require("../services/session.service");
+const { restoreStock } = require("../services/order.service");
 const { enqueue } = require("../services/notificationQueue.service");
 
 const escapeRegex = (s = "") => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -210,6 +211,8 @@ const updateReturn = asyncHandler(async (req, res) => {
   if (rr.status === "Completed" && order.orderStatus === "Delivered") {
     order.orderStatus = "Returned";
     order.statusHistory.push({ status: "Returned", changedBy: req.user._id, note: "Return completed" });
+    // The returned items go back into stock (ledger-driven — never twice).
+    await restoreStock(order.items, { orderId: order._id, performedBy: req.user._id });
   }
   if (rr.refund.status === "Completed" && ["Returned", "Cancelled"].includes(order.orderStatus)) {
     order.paymentStatus = "Refunded";

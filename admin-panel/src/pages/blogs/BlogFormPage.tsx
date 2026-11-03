@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { useForm, useWatch } from "react-hook-form";
-import { ArrowLeft, Eye, Code2 } from "lucide-react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { ArrowLeft, Eye, Code2, Plus, Trash2 } from "lucide-react";
 import { useBlogPost, useCreateBlog, useUpdateBlog, useBlogCategories } from "@/hooks/useBlog";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardHeader, CardBody } from "@/components/ui/Card";
@@ -30,7 +30,20 @@ interface FormShape {
   ogDescription: string;
   ogImage: string;
   robots: string;
+  isFeatured: boolean;
+  isTrending: boolean;
+  faqs: { question: string; answer: string }[];
 }
+
+/** One-click HTML blocks the storefront styles (keep in sync with frontend .blog-content CSS). */
+const SNIPPETS: { label: string; html: string }[] = [
+  { label: "Quote", html: "<blockquote><p>A beautiful quote.</p><p>— Author</p></blockquote>" },
+  { label: "Image + caption", html: "<figure><img src=\"https://\" alt=\"Describe the image\"><figcaption>Caption</figcaption></figure>" },
+  { label: "Gallery", html: "<div class=\"gallery\"><img src=\"https://\" alt=\"\"><img src=\"https://\" alt=\"\"><img src=\"https://\" alt=\"\"></div>" },
+  { label: "YouTube video", html: "<div class=\"video\"><iframe src=\"https://www.youtube.com/embed/VIDEO_ID\" title=\"Video\"></iframe></div>" },
+  { label: "Table", html: "<table><thead><tr><th>Metal</th><th>Care</th></tr></thead><tbody><tr><td>Gold plated</td><td>Keep dry</td></tr></tbody></table>" },
+  { label: "Code", html: "<pre><code class=\"language-html\">&lt;p&gt;Example&lt;/p&gt;</code></pre>" },
+];
 
 /** Blog post editor — plain HTML content with a live preview. */
 export function BlogFormPage() {
@@ -50,7 +63,21 @@ export function BlogFormPage() {
     setValue,
     control,
     formState: { errors, dirtyFields },
-  } = useForm<FormShape>({ defaultValues: { status: "draft", content: "", robots: "index, follow" } });
+  } = useForm<FormShape>({ defaultValues: { status: "draft", content: "", robots: "index, follow", isFeatured: false, isTrending: false, faqs: [] } });
+  const faqFields = useFieldArray({ control, name: "faqs" });
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /** Inserts an HTML snippet at the cursor in the content editor. */
+  const insertSnippet = (html: string) => {
+    const el = contentRef.current;
+    const current = el?.value ?? content ?? "";
+    const at = el ? el.selectionStart : current.length;
+    const next = `${current.slice(0, at)}
+${html}
+${current.slice(el ? el.selectionEnd : at)}`;
+    setValue("content", next, { shouldDirty: true, shouldValidate: true });
+    requestAnimationFrame(() => el?.focus());
+  };
   const [featuredImage, setFeaturedImage] = useState<File | null>(null);
   const [preview, setPreview] = useState(false);
   const content = useWatch({ control, name: "content" });
@@ -74,6 +101,9 @@ export function BlogFormPage() {
         ogDescription: blog.seo?.ogDescription || "",
         ogImage: blog.seo?.ogImage || "",
         robots: blog.seo?.robots || "index, follow",
+        isFeatured: !!blog.isFeatured,
+        isTrending: !!blog.isTrending,
+        faqs: blog.faqs ?? [],
       });
     }
   }, [blog, reset]);
@@ -103,6 +133,9 @@ export function BlogFormPage() {
         robots: values.robots,
       },
       featuredImage: featuredImage || undefined,
+      isFeatured: values.isFeatured,
+      isTrending: values.isTrending,
+      faqs: values.faqs.map((q) => ({ question: q.question.trim(), answer: q.answer.trim() })).filter((q) => q.question && q.answer),
     };
     if (isEdit) {
       updateBlog.mutate(payload, { onSuccess: () => navigate({ to: "/blogs" }) });
@@ -110,6 +143,8 @@ export function BlogFormPage() {
       createBlog.mutate(payload, { onSuccess: () => navigate({ to: "/blogs" }) });
     }
   };
+
+  const contentField = register("content", { validate: (html) => (!!html && html.trim() !== "") || "Content is required" });
 
   if (isEdit && isLoading) return <Skeleton className="h-96 w-full" />;
 
@@ -157,11 +192,43 @@ export function BlogFormPage() {
                       "w-full rounded-lg border bg-white p-3 font-mono text-xs leading-relaxed outline-none focus:border-ink",
                       errors.content ? "border-danger" : "border-border",
                     )}
-                    {...register("content", { validate: (html) => (!!html && html.trim() !== "") || "Content is required" })}
+                    {...contentField}
+                    ref={(el) => {
+                      contentField.ref(el);
+                      contentRef.current = el;
+                    }}
                   />
+                )}
+                {!preview && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <span className="self-center text-xs text-muted">Insert:</span>
+                    {SNIPPETS.map((sn) => (
+                      <button key={sn.label} type="button" onClick={() => insertSnippet(sn.html)} className="rounded-md border border-border px-2 py-1 text-xs text-ink hover:bg-surface">
+                        {sn.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {errors.content && <p className="mt-1 text-xs text-danger">{errors.content.message}</p>}
               </div>
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title="FAQ" description="Shown at the end of the post and added to search results as FAQ rich results." action={<Button type="button" size="sm" variant="outline" onClick={() => faqFields.append({ question: "", answer: "" })} disabled={faqFields.fields.length >= 20}><Plus size={13} /> Add question</Button>} />
+            <CardBody className="space-y-4">
+              {faqFields.fields.length === 0 && <p className="text-sm text-muted">No questions yet.</p>}
+              {faqFields.fields.map((field, i) => (
+                <div key={field.id} className="rounded-xl border border-border p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1 space-y-2">
+                      <Input label={`Question ${i + 1}`} maxLength={300} {...register(`faqs.${i}.question` as const)} />
+                      <Textarea label="Answer" rows={3} maxLength={3000} {...register(`faqs.${i}.answer` as const)} />
+                    </div>
+                    <button type="button" onClick={() => faqFields.remove(i)} className="mt-7 flex h-8 w-8 items-center justify-center rounded-lg text-danger hover:bg-danger-bg" aria-label="Remove question"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
             </CardBody>
           </Card>
 
@@ -196,6 +263,12 @@ export function BlogFormPage() {
                 <option value="scheduled">Scheduled</option>
               </Select>
               <Input label="Publish date" type="datetime-local" {...register("publishedAt")} />
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <input type="checkbox" {...register("isFeatured")} /> Featured — show in the journal's featured slider
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink">
+                <input type="checkbox" {...register("isTrending")} /> Trending — pin to the trending list
+              </label>
               <Select label="Category" {...register("category")}>
                 <option value="">No category</option>
                 {categories?.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}

@@ -4,6 +4,8 @@ const { sendResponse } = require('../utils/ApiResponse');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 
+const MAX_DEVICES_PER_USER = 10;
+
 // @desc    Get logged-in user's notifications (paginated), newest first
 // @route   GET /api/v1/notifications?page=&limit=&unreadOnly=true
 // @access  Private
@@ -83,7 +85,12 @@ const registerPushToken = asyncHandler(async (req, res) => {
   const { token } = req.body;
   if (!token) throw new ApiError(400, 'token is required');
 
-  await User.findByIdAndUpdate(req.user._id, { $addToSet: { pushTokens: token } });
+  // A device belongs to one account: if someone else was signed in on this
+  // phone before (and its logout never reached us), stop sending them here.
+  await User.updateMany({ _id: { $ne: req.user._id }, pushTokens: token }, { $pull: { pushTokens: token } });
+  // Move the token to the end and keep the 10 most recent devices per account.
+  await User.updateOne({ _id: req.user._id }, { $pull: { pushTokens: token } });
+  await User.updateOne({ _id: req.user._id }, { $push: { pushTokens: { $each: [token], $slice: -MAX_DEVICES_PER_USER } } });
   sendResponse(res, 200, {}, 'Push token registered');
 });
 

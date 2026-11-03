@@ -76,7 +76,7 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
   ];
 
   return (
-    <Drawer open={open} onClose={onClose} side="left" label="Menu" title={<Brand className="pointer-events-none [&_span]:text-xl" />}>
+    <Drawer open={open} onClose={onClose} side="left" label="Menu" title={<Brand className="pointer-events-none [&_img]:h-11" />}>
       <div className="flex flex-col">
         <div className="border-b border-border px-5 py-4">
           <button

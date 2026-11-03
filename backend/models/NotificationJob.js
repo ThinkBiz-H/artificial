@@ -16,6 +16,9 @@ const notificationJobSchema = new mongoose.Schema(
     to: { type: String, required: true }, // resolved email address / phone number / device token
     subject: { type: String, default: '' },
     body: { type: String, required: true },
+    // Push only: deep-link data and a rich-notification image.
+    data: { type: mongoose.Schema.Types.Mixed, default: null },
+    imageUrl: { type: String, default: '' },
     status: { type: String, enum: ['pending', 'processing', 'sent', 'failed'], default: 'pending', index: true },
     attempts: { type: Number, default: 0 },
     maxAttempts: { type: Number, default: 3 },

@@ -4,6 +4,7 @@ const AuditLog = require('../models/AuditLog');
 const LoginHistory = require('../models/LoginHistory');
 const { processPendingJobs } = require('./notificationQueue.service');
 const { notify } = require('./notification.service');
+const { processScheduledCampaigns } = require('./notificationCampaign.service');
 const logger = require('../utils/logger');
 
 /**
@@ -63,6 +64,17 @@ let intervals = [];
  * this explicitly rather than hiding it).
  */
 const startScheduler = () => {
+  intervals.push(
+    setInterval(async () => {
+      try {
+        const count = await processScheduledCampaigns();
+        if (count) logger.info(`${count} scheduled notification campaign(s) sent`);
+      } catch (err) {
+        logger.error(`Scheduled notification campaigns error: ${err.message}`);
+      }
+    }, 30_000) // every 30s
+  );
+
   intervals.push(
     setInterval(async () => {
       try {

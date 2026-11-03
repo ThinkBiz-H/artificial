@@ -130,6 +130,7 @@ const {
   broadcastNotification,
 } = require('../controllers/notificationAdmin.controller');
 const { templateValidator, broadcastValidator } = require('../validators/notificationAdmin.validator');
+const campaigns = require('../controllers/notificationCampaign.controller');
 
 const upload = require('../middlewares/upload.middleware');
 const { homeSectionFields, heroSlideFields, reelFields } = require('../middlewares/upload.middleware');
@@ -276,6 +277,21 @@ router.get('/settings', requirePermission('manage_settings'), getAllSettings);
 router.put('/settings', requirePermission('manage_settings'), settingsUpdateValidator, validate, updateSettings);
 router.put('/settings/logo', requirePermission('manage_settings'), upload.single('logo'), updateLogo);
 router.put('/settings/favicon', requirePermission('manage_settings'), upload.single('favicon'), updateFavicon);
+// Brand Management (Settings → Brand Management)
+const brandCtl = require('../controllers/brandSettings.controller');
+const { brandUpload } = require('../middlewares/upload.middleware');
+const canViewBrand = requirePermission('Settings', 'View');
+const canEditBrand = requirePermission('Settings', 'Edit');
+router.get('/brand', canViewBrand, brandCtl.getBrand);
+router.put('/brand', canEditBrand, brandCtl.updateBrand);
+router.get('/brand/export', canViewBrand, brandCtl.exportBrand);
+router.post('/brand/import', canEditBrand, brandCtl.importBrand);
+router.post('/brand/reset', canEditBrand, brandCtl.resetBrand);
+router.post('/brand/assets/:slot', canEditBrand, brandUpload.single('file'), brandCtl.uploadAsset);
+router.post('/brand/assets/:slot/media', canEditBrand, brandCtl.useMediaAsset);
+router.delete('/brand/assets/:slot', canEditBrand, brandCtl.removeAsset);
+router.get('/brand/assets/:slot/versions', canViewBrand, brandCtl.listVersions);
+router.post('/brand/assets/:slot/versions/:versionId/restore', canEditBrand, brandCtl.restoreVersion);
 router.get('/settings/environment-status', requirePermission('manage_settings'), getEnvironmentStatus);
 
 // Media Manager (Phase 12)
@@ -295,6 +311,21 @@ router.get('/notification-templates', getTemplates);
 router.post('/notification-templates', templateValidator, validate, createTemplate);
 router.put('/notification-templates/:id', updateTemplate);
 router.delete('/notification-templates/:id', deleteTemplate);
+// Notification Center — push campaigns (history, scheduling, analytics)
+const notificationsOn = requireFeature('notifications', 'Notifications are switched off in Settings > Feature flags.');
+router.get('/notifications/campaigns', requirePermission('Notifications', 'View'), campaigns.listCampaigns);
+router.get('/notifications/campaigns/summary', requirePermission('Notifications', 'View'), campaigns.campaignSummary);
+router.post('/notifications/campaigns/estimate', requirePermission('Notifications', 'View'), campaigns.estimate);
+router.get('/notifications/campaigns/:id', requirePermission('Notifications', 'View'), campaigns.getCampaign);
+router.post('/notifications/campaigns', requirePermission('Notifications', 'Create'), notificationsOn, campaigns.createCampaign);
+router.put('/notifications/campaigns/:id', requirePermission('Notifications', 'Edit'), campaigns.updateCampaign);
+router.post('/notifications/campaigns/:id/send', requirePermission('Notifications', 'Create'), notificationsOn, campaigns.sendNowHandler);
+router.post('/notifications/campaigns/:id/retry', requirePermission('Notifications', 'Create'), notificationsOn, campaigns.retryCampaign);
+router.post('/notifications/jobs/retry-failed', requirePermission('Notifications', 'Edit'), campaigns.retryFailedDeliveries);
+router.post('/notifications/campaigns/:id/cancel', requirePermission('Notifications', 'Edit'), campaigns.cancelCampaign);
+router.post('/notifications/campaigns/:id/duplicate', requirePermission('Notifications', 'Create'), campaigns.duplicateCampaign);
+router.delete('/notifications/campaigns/:id', requirePermission('Notifications', 'Delete'), campaigns.deleteCampaign);
+router.post('/notifications/test', requirePermission('Notifications', 'Create'), campaigns.sendTest);
 router.post('/notifications/broadcast', requireFeature('notifications', 'Notifications are switched off in Settings > Feature flags.'), broadcastValidator, validate, broadcastNotification);
 
 module.exports = router;

@@ -140,8 +140,7 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr_1fr]">
           <div className="col-span-2 md:col-span-4 lg:col-span-1">
             <Link to="/" className="inline-flex items-center gap-3" aria-label={`${store.siteName} home`}>
-              {store.logo && <img src={store.logo} alt="" width={44} height={44} className="h-11 w-11 object-contain" />}
-              <span className="font-display text-3xl font-semibold uppercase tracking-[0.28em] text-fg-inverse">{store.siteName}</span>
+              <img src={store.footerLogo} alt={store.siteName} width={1264} height={843} className="h-20 w-auto rounded-image object-contain" />
             </Link>
             <p className="mt-2 text-label uppercase tracking-[0.4em] text-accent-light">Premium Artificial Jewellery</p>
             <p className="mt-6 max-w-sm font-sub text-[15px] leading-7 text-fg-inverse/65">{store.tagline || DEFAULT_ABOUT}</p>

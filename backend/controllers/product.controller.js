@@ -6,8 +6,8 @@ const Product = require("../models/Product");
 const User = require("../models/User");
 const Category = require("../models/Category");
 const ApiFeatures = require("../utils/ApiFeatures");
-const Warehouse = require("../models/Warehouse");
 const WarehouseStock = require("../models/WarehouseStock");
+const StockMovement = require("../models/StockMovement");
 const Variant = require("../models/Variant");
 const Notification = require("../models/Notification");
 const { withTransaction } = require("../utils/withTransaction");
@@ -147,27 +147,49 @@ const createProduct = asyncHandler(async (req, res) => {
   body.gstAmount = gst.gstAmount;
   body.priceIncludesGST = gst.priceIncludesGST;
 
-  const product = await Product.create({ ...body, images, thumbnail });
-  const defaultWarehouse = await Warehouse.findOne({
-  isDefault: true,
-  status: "active",
-});
+  // The default warehouse is resolved (and repaired if needed) before
+  // anything is written; the product, its stock row and the opening-stock
+  // movement are then saved together, so a failure can never leave a
+  // product without inventory.
+  const defaultWarehouse = await inventoryService.getDefaultWarehouse();
+  let product;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      [product] = await Product.create([{ ...body, images, thumbnail }], { session });
+      if (!product.hasVariants) {
+        const opening = Math.max(0, Number(product.stock) || 0);
+        await WarehouseStock.create(
+          [{ product: product._id, variant: null, warehouse: defaultWarehouse._id, available: opening, reserved: 0, damaged: 0, incoming: 0 }],
+          { session },
+        );
+        if (opening > 0) {
+          await StockMovement.create(
+            [{
+              product: product._id,
+              warehouse: defaultWarehouse._id,
+              unit: product.unit || null,
+              type: "adjustment",
+              quantity: opening,
+              previousStock: 0,
+              newStock: opening,
+              referenceType: "system",
+              note: "Opening stock (product created)",
+              performedBy: req.user?._id || null,
+            }],
+            { session },
+          );
+        }
+      }
+    });
+  } catch (err) {
+    // Nothing was saved — don't leave the just-uploaded images orphaned on Cloudinary.
+    await Promise.all(images.map((img) => (img.publicId ? deleteFromCloudinary(img.publicId) : null)));
+    throw err;
+  } finally {
+    await session.endSession();
+  }
 
-if (!defaultWarehouse) {
-  throw new ApiError(500, "Default warehouse not found");
-}
-
-if (!product.hasVariants) {
-  await WarehouseStock.create({
-    product: product._id,
-    variant: null,
-    warehouse: defaultWarehouse._id,
-    available: product.stock || 0,
-    reserved: 0,
-    damaged: 0,
-    incoming: 0,
-  });
-}
   sendResponse(res, 201, { product }, "Product created successfully");
 });
 

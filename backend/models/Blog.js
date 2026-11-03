@@ -51,14 +51,41 @@ const blogSchema = new mongoose.Schema(
     seo: { type: seoSchema, default: () => ({}) },
 
     viewCount: { type: Number, default: 0 },
+
+    // Journal presentation (all optional — older posts keep working).
+    isFeatured: { type: Boolean, default: false }, // featured slider on the journal page
+    isTrending: { type: Boolean, default: false }, // pinned to "Trending"
+    likeCount: { type: Number, default: 0, min: 0 },
+    faqs: [
+      {
+        _id: false,
+        question: { type: String, trim: true, maxlength: 300 },
+        answer: { type: String, trim: true, maxlength: 3000 },
+      },
+    ],
+    readingTime: { type: Number, default: null }, // minutes, computed from content on save
   },
   { timestamps: true },
 );
 
 blogSchema.index({ status: 1, publishedAt: -1 });
+blogSchema.index({ isFeatured: 1, publishedAt: -1 });
+blogSchema.index({ viewCount: -1 });
 blogSchema.index({ category: 1 });
 blogSchema.index({ tags: 1 });
 blogSchema.index({ title: "text", content: "text", excerpt: "text" });
+
+/** Minutes to read: ~200 words per minute of visible text, at least 1. */
+blogSchema.statics.computeReadingTime = (html = "") => {
+  const words = String(html).replace(/<[^>]*>/g, " ").split(/s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+};
+
+blogSchema.pre("save", function () {
+  if (this.isModified("content") || this.readingTime == null) {
+    this.readingTime = this.constructor.computeReadingTime(this.content);
+  }
+});
 
 blogSchema.pre("save", async function () {
   if (this.isModified("title") && !this.slug) {

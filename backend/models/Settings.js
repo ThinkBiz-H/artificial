@@ -18,10 +18,27 @@ const mongoose = require("mongoose");
  * (see settings.service.js) reports whether the underlying env credentials
  * are PRESENT, as booleans only, never their values.
  */
+/** One brand logo slot (Brand Management) — the current version of that logo. */
+const brandAssetSchema = new mongoose.Schema(
+  {
+    url: { type: String, default: "" },
+    publicId: { type: String, default: "" },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
+    format: { type: String, default: "" },
+    bytes: { type: Number, default: null },
+    version: { type: Number, default: null }, // Cloudinary version
+    versionId: { type: mongoose.Schema.Types.ObjectId, ref: "BrandAssetVersion", default: null },
+    updatedAt: { type: Date, default: Date.now },
+    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { _id: false },
+);
+
 const settingsSchema = new mongoose.Schema(
   {
     general: {
-      siteName: { type: String, default: "My Store" },
+      siteName: { type: String, default: "Abj Jewellery" },
       siteTagline: { type: String, default: "" },
       supportEmail: { type: String, default: "" },
       supportPhone: { type: String, default: "" },
@@ -169,6 +186,36 @@ const settingsSchema = new mongoose.Schema(
       message: { type: String, default: '' },
       androidUrl: { type: String, default: '' },
       iosUrl: { type: String, default: '' },
+    },
+
+    // Brand Management (services/brand.service.js). Company details, social
+    // links and invoice text live in the existing sections above; this holds
+    // only what is new: every logo slot, the theme and a few extra fields.
+    brand: {
+      assets: { type: Map, of: brandAssetSchema, default: {} },
+      // Empty value = the built-in default (brand.service DEFAULT_THEME).
+      theme: {
+        primary: { type: String, default: "" },
+        secondary: { type: String, default: "" },
+        accent: { type: String, default: "" },
+        button: { type: String, default: "" },
+        navbar: { type: String, default: "" },
+        footer: { type: String, default: "" },
+        background: { type: String, default: "" },
+        text: { type: String, default: "" },
+        textMuted: { type: String, default: "" },
+        radius: { type: Number, default: null, min: 0, max: 40 },
+        headingFont: { type: String, default: "" },
+        bodyFont: { type: String, default: "" },
+      },
+      company: {
+        pan: { type: String, default: "" },
+        mapUrl: { type: String, default: "" },
+        workingHours: { type: String, default: "" },
+      },
+      revision: { type: Number, default: 0 },
+      updatedAt: { type: Date, default: null },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     },
 
     logo: {

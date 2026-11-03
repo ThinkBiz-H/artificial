@@ -2,11 +2,12 @@ const NotificationJob = require('../models/NotificationJob');
 const { sendEmail } = require('../utils/sendEmail');
 const { sendSms } = require('./sms.service');
 const { sendPush } = require('./push.service');
+const { pruneDeadTokens } = require('./pushTokens.service');
 const logger = require('../utils/logger');
 
-const enqueue = ({ channel, recipientUser = null, to, subject = '', body }) => {
+const enqueue = ({ channel, recipientUser = null, to, subject = '', body, data = null, imageUrl = '' }) => {
   if (!to) return null; // e.g. a user with no email on a mobile-only account — skip, don't queue a job that can never send
-  return NotificationJob.create({ channel, recipientUser, to, subject, body });
+  return NotificationJob.create({ channel, recipientUser, to, subject, body, data, imageUrl });
 };
 
 const BACKOFF_MINUTES = [1, 5, 30]; // attempt 1 fails -> retry in 1min, attempt 2 fails -> 5min, attempt 3 fails -> 30min, then give up
@@ -17,7 +18,11 @@ const deliverOne = async (job) => {
   } else if (job.channel === 'sms') {
     await sendSms({ to: job.to, message: job.body });
   } else if (job.channel === 'push') {
-    await sendPush({ tokens: [job.to], title: job.subject, body: job.body });
+    const data = job.data || {};
+    const { badge } = data;
+    const result = await sendPush({ tokens: [job.to], title: job.subject, body: job.body, data, imageUrl: job.imageUrl || '', badge: Number.isInteger(badge) ? badge : undefined });
+    // Uninstalled app / revoked token: forget it so it is never retried.
+    if (result?.invalidTokens?.length) await pruneDeadTokens(result.invalidTokens);
   }
 };
 
@@ -67,4 +72,15 @@ const processPendingJobs = async (batchSize = 10) => {
   return processed;
 };
 
-module.exports = { enqueue, processPendingJobs };
+/** Puts failed jobs from the last `days` back in the queue (admin "Retry failed"). */
+const retryFailedJobs = async ({ days = 7 } = {}) => {
+  const since = new Date(Date.now() - days * 86_400_000);
+  const result = await NotificationJob.updateMany(
+    { status: 'failed', createdAt: { $gte: since } },
+    { $set: { status: 'pending', attempts: 0, nextAttemptAt: new Date(), lastError: '' } },
+  );
+  if (result.modifiedCount) setImmediate(() => processPendingJobs(50).catch((err) => logger.error(`Retrying failed notifications: ${err.message}`)));
+  return result.modifiedCount || 0;
+};
+
+module.exports = { enqueue, processPendingJobs, retryFailedJobs };

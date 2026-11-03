@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { notificationsAdminApi } from "@/api/notifications";
+import { notificationsAdminApi, type TemplateInput } from "@/api/notifications";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ export function useTemplates(params: { type?: string; channel?: string } = {}) {
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (values: { type: string; channel: string; subject?: string; body: string; isActive?: boolean }) =>
+    mutationFn: (values: TemplateInput) =>
       notificationsAdminApi.createTemplate(values),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-templates"] });
@@ -23,7 +23,7 @@ export function useCreateTemplate() {
 export function useUpdateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, values }: { id: string; values: Partial<{ subject: string; body: string; isActive: boolean }> }) =>
+    mutationFn: ({ id, values }: { id: string; values: Partial<TemplateInput> }) =>
       notificationsAdminApi.updateTemplate(id, values),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-templates"] });

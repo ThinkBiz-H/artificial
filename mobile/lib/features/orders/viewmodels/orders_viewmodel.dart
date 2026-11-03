@@ -35,7 +35,7 @@ class OrderActions {
   /// GET /orders/:id/invoice → temp PDF → opens it. Returns a message when it can't be opened.
   Future<String?> openInvoice(OrderModel order) async {
     // Saving and opening files needs the mobile file system.
-    if (kIsWeb) return 'Invoice download is available in the Swastikala app.';
+    if (kIsWeb) return 'Invoice download is available in the Abj Jewellery app.';
     final files = _ref.read(fileServiceProvider);
     final path = await files.tempPath('invoice-${order.orderNumber.isEmpty ? order.id : order.orderNumber}.pdf');
     await _ref.read(orderRepositoryProvider).downloadInvoice(order.id, path);

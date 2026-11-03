@@ -1,6 +1,6 @@
-# Swastikala — Flutter app
+# Abj Jewellery — Flutter app
 
-Flutter client for the existing Swastikala Node/Express backend (same API as the website).
+Flutter client for the existing Abj Jewellery Node/Express backend (same API as the website).
 
 ## Setup
 

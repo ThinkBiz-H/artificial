@@ -20,8 +20,8 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
  * aria-busy) · success (check). Shape, type and motion come from tokens.
  */
 const variantClasses: Record<Variant, string> = {
-  primary: "bg-primary text-fg-inverse shadow-sm hover:bg-primary-hover hover:shadow-lift active:bg-primary",
-  dark: "bg-primary text-fg-inverse hover:bg-primary-hover active:bg-primary",
+  primary: "bg-button text-fg-inverse shadow-sm hover:bg-button-hover hover:shadow-lift active:bg-button",
+  dark: "bg-button text-fg-inverse hover:bg-button-hover active:bg-button",
   secondary: "border border-primary bg-surface text-primary hover:bg-primary hover:text-fg-inverse active:bg-primary-hover",
   outline: "border border-primary bg-transparent text-primary hover:bg-primary hover:text-fg-inverse active:bg-primary-hover",
   ghost: "bg-transparent text-fg hover:bg-surface-muted active:bg-border",

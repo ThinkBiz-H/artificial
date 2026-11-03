@@ -36,7 +36,7 @@ class _SupportScreenState extends ConsumerState<SupportScreen> {
         _Channel(
           icon: Icons.chat_outlined,
           label: 'WhatsApp',
-          onTap: () => launcher.whatsapp(settings.effectiveWhatsapp, message: 'Hi Swastikala, I need help with'),
+          onTap: () => launcher.whatsapp(settings.effectiveWhatsapp, message: 'Hi Abj Jewellery, I need help with'),
         ),
       if (settings.effectiveSupportPhone.isNotEmpty)
         _Channel(icon: Icons.call_outlined, label: 'Call us', onTap: () => launcher.call(settings.effectiveSupportPhone)),

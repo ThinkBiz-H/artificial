@@ -45,6 +45,8 @@ const RolesPage = lazyRouteComponent(() => import("@/pages/roles/RolesPage"), "R
 const StaffPage = lazyRouteComponent(() => import("@/pages/staff/StaffPage"), "StaffPage");
 const TransactionsPage = lazyRouteComponent(() => import("@/pages/transactions/TransactionsPage"), "TransactionsPage");
 const ReturnsPage = lazyRouteComponent(() => import("@/pages/returns/ReturnsPage"), "ReturnsPage");
+const WarehousesPage = lazyRouteComponent(() => import("@/pages/warehouses/WarehousesPage"), "WarehousesPage");
+const BrandManagementPage = lazyRouteComponent(() => import("@/pages/settings/BrandManagementPage"), "BrandManagementPage");
 const InventoryPage = lazyRouteComponent(() => import("@/pages/inventory/InventoryPage"), "InventoryPage");
 const AnalyticsPage = lazyRouteComponent(() => import("@/pages/analytics/AnalyticsPage"), "AnalyticsPage");
 const SupportPage = lazyRouteComponent(() => import("@/pages/support/SupportPage"), "SupportPage");
@@ -215,6 +217,7 @@ const reportsRoute = createRoute({
   path: "/reports",
   component: ReportsPage,
 });
+const brandManagementRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/brand", component: BrandManagementPage });
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
@@ -249,6 +252,7 @@ const staffRoute = createRoute({
 const transactionsRoute = createRoute({ getParentRoute: () => appRoute, path: "/transactions", component: TransactionsPage });
 const returnsRoute = createRoute({ getParentRoute: () => appRoute, path: "/returns", component: ReturnsPage });
 const inventoryRoute = createRoute({ getParentRoute: () => appRoute, path: "/inventory", component: InventoryPage });
+const warehousesRoute = createRoute({ getParentRoute: () => appRoute, path: "/warehouses", component: WarehousesPage });
 const analyticsRoute = createRoute({ getParentRoute: () => appRoute, path: "/analytics", component: AnalyticsPage });
 const supportRoute = createRoute({ getParentRoute: () => appRoute, path: "/support", component: SupportPage });
 
@@ -290,6 +294,7 @@ const routeTree = rootRoute.addChildren([
     mediaRoute,
     reportsRoute,
     settingsRoute,
+    brandManagementRoute,
     profileRoute,
     changePasswordRoute,
     auditLogRoute,
@@ -298,6 +303,7 @@ const routeTree = rootRoute.addChildren([
     transactionsRoute,
     returnsRoute,
     inventoryRoute,
+    warehousesRoute,
     analyticsRoute,
     supportRoute,
     notFoundRoute,

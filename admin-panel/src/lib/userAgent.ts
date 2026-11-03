@@ -14,7 +14,7 @@ export function describeUserAgent(ua: string | undefined | null): { browser: str
             : /Safari\//.test(s)
               ? "Safari"
               : /Dart|dart:io|okhttp|SwastikalaApp/i.test(s)
-                ? "Swastikala app"
+                ? "Abj Jewellery app"
                 : "Unknown browser";
   const platform = /Android/.test(s)
     ? "Android"

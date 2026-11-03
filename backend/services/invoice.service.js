@@ -4,11 +4,13 @@ const { formatItemOptions } = require("../utils/itemOptions");
 const money = (n) => `Rs. ${Number(n || 0).toFixed(2)}`;
 
 const COMPANY = {
-  name: process.env.COMPANY_NAME || "My Shop Pvt. Ltd.",
+  name: process.env.COMPANY_NAME || "Abj Jewellery",
   address: process.env.COMPANY_ADDRESS || "",
   gstin: process.env.COMPANY_GSTIN || "",
   phone: process.env.COMPANY_PHONE || "",
   email: process.env.COMPANY_EMAIL || "",
+  // PNG/JPEG buffer of the admin invoice logo — set by services/brand.service.js.
+  logo: null,
 };
 
 /**
@@ -28,6 +30,14 @@ const streamInvoicePDF = (order, res) => {
   doc.pipe(res);
 
   // ---------- Header ----------
+  if (COMPANY.logo) {
+    try {
+      doc.image(COMPANY.logo, { fit: [150, 55] });
+      doc.moveDown(0.4);
+    } catch {
+      // Unsupported image data — the name below still identifies the seller.
+    }
+  }
   doc.fontSize(18).font("Helvetica-Bold").text(COMPANY.name, { continued: false });
   doc.fontSize(9).font("Helvetica").fillColor("#555");
   if (COMPANY.address) doc.text(COMPANY.address);
@@ -168,4 +178,4 @@ const streamInvoicePDF = (order, res) => {
   doc.end();
 };
 
-module.exports = { streamInvoicePDF };
+module.exports = { streamInvoicePDF, COMPANY };

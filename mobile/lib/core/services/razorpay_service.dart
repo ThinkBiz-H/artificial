@@ -77,7 +77,7 @@ class RazorpayService {
     // razorpay_flutter has no web implementation.
     if (kIsWeb) {
       return Future.value(const RazorpayOutcome._(RazorpayOutcomeType.failed,
-          message: 'Online payment is available in the Swastikala app. Please choose Cash on Delivery here.'));
+          message: 'Online payment is available in the Abj Jewellery app. Please choose Cash on Delivery here.'));
     }
     final completer = Completer<RazorpayOutcome>();
     final razorpay = Razorpay();

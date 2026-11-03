@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,8 @@ import 'core/providers/app_providers.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/core_providers.dart';
 import 'core/providers/push_registration_provider.dart';
+import 'core/providers/repository_providers.dart';
+import 'core/realtime/realtime_sync.dart';
 import 'core/routes/app_router.dart';
 import 'core/routes/link_resolver.dart';
 import 'core/routes/route_paths.dart';
@@ -15,14 +19,14 @@ import 'shared/widgets/offline_banner.dart';
 
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
-class SwastikalaApp extends ConsumerStatefulWidget {
-  const SwastikalaApp({super.key});
+class AbjJewelleryApp extends ConsumerStatefulWidget {
+  const AbjJewelleryApp({super.key});
 
   @override
-  ConsumerState<SwastikalaApp> createState() => _SwastikalaAppState();
+  ConsumerState<AbjJewelleryApp> createState() => _AbjJewelleryAppState();
 }
 
-class _SwastikalaAppState extends ConsumerState<SwastikalaApp> {
+class _AbjJewelleryAppState extends ConsumerState<AbjJewelleryApp> {
   @override
   void initState() {
     super.initState();
@@ -31,7 +35,20 @@ class _SwastikalaAppState extends ConsumerState<SwastikalaApp> {
     push.onTokenRefresh = (token) => ref.read(pushRegistrationProvider).onTokenRefreshed(token);
     push.onForegroundMessage.listen((_) => ref.invalidate(unreadNotificationsProvider));
 
+    // Realtime: one socket for the whole session; keeps providers in sync.
+    ref.read(realtimeSyncProvider).onInAppNotification = (title, message) {
+      scaffoldMessengerKey.currentState?.showSnackBar(
+        SnackBar(content: Text(message.isEmpty ? title : '$title\n$message')),
+      );
+    };
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Every install (signed in or not): ask for notification permission
+      // (Android 13+ / iOS) and join the admin campaign topics.
+      if (ref.read(localStorageProvider).pushEnabled) {
+        await push.requestPermission();
+        unawaited(push.setTopicSubscriptions(true));
+      }
       if (ref.read(isAuthenticatedProvider)) {
         await ref.read(pushRegistrationProvider).register();
       }
@@ -49,6 +66,11 @@ class _SwastikalaAppState extends ConsumerState<SwastikalaApp> {
     final router = ref.read(routerProvider);
     final orderId = data['orderId']?.toString() ?? data['relatedOrder']?.toString();
     final link = data['link']?.toString();
+    // Click analytics for Notification Center campaigns.
+    final campaignId = data['campaignId']?.toString();
+    if (campaignId != null && campaignId.isNotEmpty) {
+      unawaited(ref.read(notificationRepositoryProvider).reportCampaignOpened(campaignId));
+    }
     final authenticated = ref.read(isAuthenticatedProvider);
     ref.invalidate(unreadNotificationsProvider);
 

@@ -15,6 +15,16 @@ const builtInDefaults = {
   'admin_broadcast:email': { subject: '{{subject}}', body: '{{message}}' },
   'admin_broadcast:sms': { subject: '', body: '{{message}}' },
   'low_stock:email': { subject: 'Low stock: {{productTitle}}', body: '{{productTitle}} is low on stock ({{available}} left) at {{warehouseName}}.' },
+  // Push for customer-facing events: same title/message as the in-app
+  // notification. An admin template for (type, 'push') overrides it, and an
+  // inactive one switches that push off.
+  ...Object.fromEntries(
+    [
+      'order_confirmed', 'order_shipped', 'order_delivered', 'order_cancelled',
+      'payment_success', 'payment_failed', 'refund_processed', 'return_approved',
+      'wishlist_price_drop', 'back_in_stock', 'coupon', 'flash_sale', 'promotion',
+    ].map((type) => [`${type}:push`, { subject: '{{title}}', body: '{{message}}' }]),
+  ),
 };
 
 /**
@@ -25,7 +35,10 @@ const builtInDefaults = {
  * meant to go out on some channels).
  */
 const renderTemplate = async (type, channel, variables = {}) => {
-  const dbTemplate = await NotificationTemplate.findOne({ type, channel, isActive: true });
+  const dbTemplate = await NotificationTemplate.findOne({ type, channel });
+  // An admin template switched off (isActive: false) disables this channel
+  // for this type, rather than falling back to the built-in default.
+  if (dbTemplate && !dbTemplate.isActive) return null;
   const source = dbTemplate || builtInDefaults[`${type}:${channel}`];
   if (!source) return null;
 

@@ -46,7 +46,7 @@ function mergeLists(max: number, ...lists: (Product[] | undefined)[]) {
 }
 
 /*
- * Editorial homepage. Section order follows the Swastikala brief:
+ * Editorial homepage. Section order follows the Abj Jewellery brief:
  * hero → categories → collections → occasions → best sellers → campaign →
  * new arrivals → bridal → everyday → price → brands → reviews → Instagram →
  * video → brand story → newsletter. Every section reads live data (admin

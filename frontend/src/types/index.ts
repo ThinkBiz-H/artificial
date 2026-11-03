@@ -375,12 +375,18 @@ export interface Blog {
   content?: string;
   excerpt?: string;
   category?: BlogCategory | string | null;
-  author?: { _id: string; name: string } | string | null;
+  author?: { _id: string; name: string; profileImage?: { url: string } } | string | null;
   tags?: string[];
   featuredImage?: { url: string; publicId: string };
   status: "draft" | "published" | "scheduled";
   publishedAt?: string;
   viewCount?: number;
+  likeCount?: number;
+  /** Minutes, computed by the server from the content. */
+  readingTime?: number | null;
+  isFeatured?: boolean;
+  isTrending?: boolean;
+  faqs?: { question: string; answer: string }[];
   seo?: {
     metaTitle?: string;
     metaDescription?: string;
@@ -393,6 +399,7 @@ export interface Blog {
   };
   relatedBlogs?: Blog[];
   createdAt: string;
+  updatedAt?: string;
 }
 
 // ---- CMS Page ----
@@ -460,6 +467,49 @@ export interface HomeSection {
 }
 
 // ---- Settings ----
+export type BrandSlot =
+  | "headerLogo" | "footerLogo" | "darkLogo" | "lightLogo" | "favicon" | "browserIcon"
+  | "appLogo" | "splashLogo" | "loginLogo" | "registerLogo" | "drawerLogo" | "appBarLogo"
+  | "androidIcon" | "iosIcon" | "invoiceLogo" | "pdfLogo" | "emailLogo" | "adminLogo";
+
+export interface BrandTheme {
+  primary: string;
+  secondary: string;
+  accent: string;
+  button: string;
+  navbar: string;
+  footer: string;
+  background: string;
+  text: string;
+  textMuted: string;
+  radius: number;
+  headingFont: string;
+  bodyFont: string;
+}
+
+export interface PublicBrand {
+  revision: number;
+  updatedAt: string | null;
+  /** Slot → URL with fallbacks applied; "" = use the bundled default. */
+  logos: Record<BrandSlot, string>;
+  theme: BrandTheme;
+  company: {
+    companyName: string;
+    brandName: string;
+    tagline: string;
+    gst: string;
+    email: string;
+    supportEmail: string;
+    phone: string;
+    customerCare: string;
+    whatsapp: string;
+    address: string;
+    mapUrl: string;
+    workingHours: string;
+  };
+  social: Record<string, string>;
+}
+
 export interface PublicSettings {
   general?: {
     siteName?: string;
@@ -480,6 +530,8 @@ export interface PublicSettings {
   featureFlags?: Record<string, boolean>;
   logo?: { url: string; publicId: string };
   favicon?: { url: string; publicId: string };
+  /** Brand Management (admin): resolved logo per slot, theme, company, social. */
+  brand?: PublicBrand;
   maintenanceMode?: { enabled: boolean; message?: string };
   whatsapp?: {
     businessNumber: string;

@@ -5,8 +5,8 @@
 const clientUrl = (process.env.CLIENT_URL || "").replace(/\/$/, "");
 
 const BRAND = {
-  name: process.env.COMPANY_NAME || "Swastikala",
-  logoUrl: clientUrl ? `${clientUrl}/logo.png` : "",
+  name: process.env.COMPANY_NAME || "Abj Jewellery",
+  logoUrl: clientUrl ? `${clientUrl}/logo.jpeg ` : "",
   storeUrl: clientUrl || "#",
   supportEmail: process.env.COMPANY_EMAIL || process.env.SMTP_FROM_EMAIL || "",
   supportPhone: process.env.COMPANY_PHONE || "",
@@ -22,6 +22,7 @@ const BRAND = {
   },
 };
 
-const trackOrderUrl = (orderId) => `${BRAND.storeUrl}/account/orders/${orderId}`;
+const trackOrderUrl = (orderId) =>
+  `${BRAND.storeUrl}/account/orders/${orderId}`;
 
 module.exports = { BRAND, trackOrderUrl };

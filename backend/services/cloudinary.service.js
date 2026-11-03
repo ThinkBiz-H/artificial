@@ -1,5 +1,6 @@
 const cloudinary = require('../config/cloudinary');
 const streamifier = require('stream');
+const logger = require('../utils/logger');
 
 /**
  * Uploads a file buffer (from multer memoryStorage) to Cloudinary.
@@ -49,9 +50,19 @@ const uploadToCloudinary = (buffer, folder = 'ecommerce', options = {}) => {
   });
 };
 
+/**
+ * Removes an asset. Never throws: cleaning up an old file must not fail the
+ * save/delete that replaced it — a failure is logged and the orphan can be
+ * cleaned up later from the Cloudinary console.
+ */
 const deleteFromCloudinary = async (publicId, resourceType = 'image') => {
   if (!publicId) return null;
-  return cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+  try {
+    return await cloudinary.uploader.destroy(publicId, { resource_type: resourceType, invalidate: true });
+  } catch (err) {
+    logger.warn(`Cloudinary delete failed for ${publicId}: ${err.message}`);
+    return null;
+  }
 };
 
 module.exports = { uploadToCloudinary, deleteFromCloudinary };
