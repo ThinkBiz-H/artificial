@@ -21,14 +21,15 @@ class AppConfig {
       return _apiBaseUrlOverride;
     }
 
-    return 'http://72.62.114.184:5001/api/v1';
-    // return 'http://192.168.1.5:5001/api/v1';
+    // return 'http://72.62.114.184:5001/api/v1';
+    return 'http://192.168.1.2:5001/api/v1';
   }
 
   /// Website URL
   static const String webBaseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
-    defaultValue: 'http://72.62.114.184:5001',
+    // defaultValue: 'http://72.62.114.184:5001',
+    defaultValue: 'http://192.168.1.2:5001',
   );
 
   static const String razorpayMerchantName = 'Abj Jewellery';

@@ -284,7 +284,7 @@ class CheckoutViewModel extends AutoDisposeNotifier<CheckoutState> {
   /// "Place order" step 3 — COD: POST /orders. Online: POST /payments/intent →
   /// Razorpay → POST /payments/intent/confirm (the order is created only
   /// after the payment is verified).
-  Future<CheckoutResult> placeOrder(CheckoutContact contact, {String? notes}) async {
+  Future<CheckoutResult> placeOrder(CheckoutContact contact, {String? notes, Map<String, String>? business}) async {
     final method = state.method;
     if (method == null) {
       throw const AppException(AppErrorType.validation, 'Please choose a payment method.');
@@ -303,6 +303,7 @@ class CheckoutViewModel extends AutoDisposeNotifier<CheckoutState> {
           paymentMethod: method,
           couponCode: state.couponCode,
           shippingNotes: notes,
+          business: business,
         );
         _finish();
         return CheckoutSucceeded(placed.order);
@@ -313,6 +314,7 @@ class CheckoutViewModel extends AutoDisposeNotifier<CheckoutState> {
         shippingAddress: contact.toOrderAddress(),
         couponCode: state.couponCode,
         shippingNotes: notes,
+        business: business,
       );
       final outcome = await ref.read(razorpayServiceProvider).pay(RazorpayCheckoutRequest(
             keyId: intent.keyId,

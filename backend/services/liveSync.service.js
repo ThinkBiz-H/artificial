@@ -34,7 +34,8 @@ const ALERT_FIELDS = ["price", "salePrice", "stock", "status", "isDeleted"];
 // Collections whose writes change public data: cache prefixes to clear and
 // the entity name clients use to refetch.
 const CATALOG = {
-  Product: { entity: "product", cache: ["products", "home-sections"], ignore: ["viewCount", "updatedAt"] },
+  // "categories": the storefront hides categories without published products.
+  Product: { entity: "product", cache: ["products", "home-sections", "categories"], ignore: ["viewCount", "updatedAt"] },
   Variant: { entity: "product", cache: ["products", "home-sections"] },
   Unit: { entity: "product", cache: ["products"] },
   Brand: { entity: "brand", cache: ["brands", "products"] },

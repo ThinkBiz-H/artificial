@@ -23,6 +23,18 @@ export interface Address {
   isDefault: boolean;
 }
 
+export type CustomerType = "retailer" | "wholesale" | "dealer" | "distributor" | "retail";
+
+export interface LedgerEntry {
+  _id: string;
+  kind: "wallet" | "points";
+  amount: number;
+  balanceAfter: number;
+  note: string;
+  createdAt: string;
+  performedBy?: { _id: string; name: string } | string | null;
+}
+
 export interface AdminUser {
   _id: string;
   name: string;
@@ -39,6 +51,13 @@ export interface AdminUser {
   isVerified: boolean;
   isActive: boolean;
   isBlocked?: boolean;
+  /** B2B account type — dealers and distributors get dealer prices. */
+  customerType?: CustomerType;
+  businessProfile?: { name?: string; gstin?: string };
+  businessVerification?: { status: "unverified" | "pending" | "verified" | "rejected"; note?: string; verifiedAt?: string | null };
+  creditLimit?: number;
+  walletBalance?: number;
+  rewardPoints?: number;
   createdAt: string;
   lastLoginAt?: string;
 }
@@ -108,6 +127,11 @@ export interface Category {
   name: string;
   slug: string;
   image?: ImageRef;
+  /** Round icon for category sliders on the website / app. */
+  icon?: ImageRef;
+  /** Wide banner for the category page header. */
+  banner?: ImageRef;
+  seo?: { title?: string; description?: string; keywords?: string };
   shortTitle?: string;
   description?: string;
   status: "active" | "inactive";
@@ -223,6 +247,24 @@ export interface Product {
   sizes?: string[];
   metal?: string;
   plating?: string;
+  stone?: string;
+  packaging?: string;
+  occasions?: string[];
+  collections?: string[];
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  isTopSelling?: boolean;
+  hsnCode?: string;
+  designCode?: string;
+  packSize?: number;
+  dealerPrice?: number;
+  bulkPricing?: { minQty: number; discountPercent: number }[];
+  shippingClass?: string;
+  spinImages?: ImageRef[];
+  video?: ImageRef;
+  highlights?: string[];
+  offer?: { id: string; name: string; endsAt?: string } | null;
+  dimensions?: { length?: number; width?: number; height?: number; unit?: "cm" | "in" };
   hasVariants: boolean;
   variants?: Variant[];
   relatedProducts?: Product[] | string[];
@@ -291,6 +333,24 @@ export interface OrderItem {
   size?: string;
   metal?: string;
   plating?: string;
+  stone?: string;
+  packaging?: string;
+  occasions?: string[];
+  collections?: string[];
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  isTopSelling?: boolean;
+  hsnCode?: string;
+  designCode?: string;
+  packSize?: number;
+  dealerPrice?: number;
+  bulkPricing?: { minQty: number; discountPercent: number }[];
+  shippingClass?: string;
+  spinImages?: ImageRef[];
+  video?: ImageRef;
+  highlights?: string[];
+  offer?: { id: string; name: string; endsAt?: string } | null;
+  dimensions?: { length?: number; width?: number; height?: number; unit?: "cm" | "in" };
 }
 
 export interface StatusHistoryEntry {
@@ -350,6 +410,8 @@ export interface Order {
     deliveryAttempts: number;
   };
   shippingNotes?: string;
+  /** B2B buyer details captured at checkout. */
+  business?: { name?: string; gstin?: string; email?: string; phone?: string };
   invoiceNumber: string;
   deliveredAt?: string;
   cancelledAt?: string;
@@ -564,6 +626,14 @@ export interface Settings {
     defaultShippingCharge: number;
     expressShippingCharge: number;
     codCharge: number;
+  };
+  /** B2B wholesale rules — enforced by checkout on the backend. */
+  wholesale?: {
+    enabled: boolean;
+    minOrderValue: number;
+    freeDelivery: boolean;
+    allowCod: boolean;
+    collectBusinessDetails: boolean;
   };
   // Storefront "Start Chat" button only — automatic order-status
   // notifications now go out over SMS, not WhatsApp.

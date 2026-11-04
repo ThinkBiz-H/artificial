@@ -123,6 +123,18 @@ const settingsSchema = new mongoose.Schema(
       codCharge: { type: Number, default: 0, min: 0 },
     },
 
+    // B2B wholesale rules (services/wholesale.service.js). While enabled the
+    // bag must reach minOrderValue before checkout, delivery is free and
+    // Cash on Delivery is off unless allowCod is set — all admin-editable.
+    wholesale: {
+      enabled: { type: Boolean, default: true },
+      minOrderValue: { type: Number, default: 5000, min: 0 },
+      freeDelivery: { type: Boolean, default: true },
+      allowCod: { type: Boolean, default: false },
+      // Ask for business name / GSTIN at checkout (GSTIN stays optional).
+      collectBusinessDetails: { type: Boolean, default: true },
+    },
+
     seo: {
       defaultMetaTitle: { type: String, default: "" },
       defaultMetaDescription: { type: String, default: "" },

@@ -1,7 +1,9 @@
+import { BusinessCard, WalletCard } from "@/components/customers/BusinessAccountCards";
+import type { CustomerType } from "@/types";
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, ShieldBan, ShieldCheck, Trash2 } from "lucide-react";
-import { useCustomer, useUpdateCustomerStatus, usePermissionCatalog, useDeleteCustomer } from "@/hooks/useCustomers";
+import { useCustomer, useUpdateCustomerStatus, useUpdateCustomerType, usePermissionCatalog, useDeleteCustomer } from "@/hooks/useCustomers";
 import { useCustomerOverview, useCustomerSessions, useRevokeCustomerSession, useSetCustomerVerified } from "@/hooks/useAdminOps";
 import { StatCard } from "@/components/common/StatCard";
 import { DevicesCard } from "@/components/common/DevicesCard";
@@ -24,6 +26,7 @@ export function CustomerDetailPage() {
   const { data: customer, isLoading } = useCustomer(customerId);
   const { data: permissionCatalog } = usePermissionCatalog();
   const updateStatus = useUpdateCustomerStatus();
+  const updateType = useUpdateCustomerType();
   const { data: overview, isLoading: loadingOverview } = useCustomerOverview(customerId);
   const { data: sessions } = useCustomerSessions(customerId);
   const revokeSession = useRevokeCustomerSession();
@@ -84,6 +87,31 @@ export function CustomerDetailPage() {
           <CardBody className="space-y-3 text-sm">
             <div className="flex justify-between"><span className="text-muted">Mobile</span><span>{customer.mobile || "—"}</span></div>
             <div className="flex justify-between"><span className="text-muted">Role</span><Badge>{customer.role}</Badge></div>
+            {customer.role === "user" && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-muted">Account type</span>
+                <select
+                  value={customer.customerType ?? "wholesale"}
+                  onChange={(e) => updateType.mutate({ id: customer._id, customerType: e.target.value as CustomerType })}
+                  disabled={updateType.isPending}
+                  aria-label="Account type"
+                  className="h-8 rounded-md border border-border bg-white px-2 text-xs"
+                >
+                  <option value="retailer">Retailer / shop owner</option>
+                  <option value="wholesale">Wholesale buyer</option>
+                  <option value="dealer">Dealer (dealer prices)</option>
+                  <option value="distributor">Distributor (dealer prices)</option>
+                  {customer.customerType === "retail" && <option value="retail">Retail (legacy)</option>}
+                </select>
+              </div>
+            )}
+            {(customer.businessProfile?.name || customer.businessProfile?.gstin) && (
+              <div className="rounded-lg bg-surface p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Business</p>
+                {customer.businessProfile.name && <p className="mt-1 font-medium text-ink">{customer.businessProfile.name}</p>}
+                {customer.businessProfile.gstin && <p className="font-mono text-xs text-muted">GSTIN {customer.businessProfile.gstin}</p>}
+              </div>
+            )}
             <div className="flex justify-between"><span className="text-muted">Status</span><Badge tone={customer.isActive ? "success" : "danger"}>{customer.isActive ? "Active" : "Blocked"}</Badge></div>
             <div className="flex justify-between"><span className="text-muted">Verified</span><span>{customer.isVerified ? "Yes" : "No"}</span></div>
             <div className="flex justify-between"><span className="text-muted">Joined</span><span>{formatDate(customer.createdAt)}</span></div>
@@ -110,6 +138,13 @@ export function CustomerDetailPage() {
             </Button>
           </CardBody>
         </Card>
+
+        {customer.role === "user" && (
+          <div className="grid gap-6 lg:col-span-3 lg:grid-cols-2">
+            <BusinessCard key={`biz-${customer._id}-${customer.businessVerification?.status}`} customer={customer} />
+            <WalletCard customer={customer} />
+          </div>
+        )}
 
         <Card className="lg:col-span-2">
           <CardHeader title="Addresses" />

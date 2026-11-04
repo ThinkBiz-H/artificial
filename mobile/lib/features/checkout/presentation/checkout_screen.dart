@@ -12,6 +12,7 @@ import '../../../core/routes/route_paths.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/utils/extensions.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/widgets/line_options.dart';
@@ -51,6 +52,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _pincode = TextEditingController();
   final _coupon = TextEditingController();
   final _notes = TextEditingController();
+  // B2B buyer details (Admin > Settings > Wholesale > ask for business details).
+  final _bizName = TextEditingController();
+  final _gstin = TextEditingController();
+  final _bizEmail = TextEditingController();
+  final _bizPhone = TextEditingController();
+  static final _gstinPattern = RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$');
   String? _state;
   int _step = 0;
   bool _continuing = false;
@@ -76,7 +83,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   void dispose() {
-    for (final c in [_mobile, _email, _first, _last, _line1, _line2, _city, _pincode, _coupon, _notes]) {
+    for (final c in [_mobile, _email, _first, _last, _line1, _line2, _city, _pincode, _coupon, _notes, _bizName, _gstin, _bizEmail, _bizPhone]) {
       c.dispose();
     }
     super.dispose();
@@ -205,6 +212,24 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context.showSnack('Please choose a payment method', error: true);
       return;
     }
+    // Wholesale minimum (the server rejects smaller orders too).
+    final minOrder = ref.read(settingsValueProvider).effectiveMinOrder;
+    final subTotal = ref.read(cartProvider).valueOrNull?.subTotal ?? 0;
+    if (minOrder > 0 && subTotal < minOrder) {
+      context.showSnack('Add ${Formatters.currency(minOrder - subTotal)} more to reach the ${Formatters.currency(minOrder)} minimum order.', error: true);
+      return;
+    }
+    final gstin = _gstin.text.trim().toUpperCase();
+    if (gstin.isNotEmpty && !_gstinPattern.hasMatch(gstin)) {
+      context.showSnack('Please enter a valid 15-character GSTIN, or leave it blank', error: true);
+      return;
+    }
+    final business = <String, String>{
+      if (_bizName.text.trim().isNotEmpty) 'name': _bizName.text.trim(),
+      if (gstin.isNotEmpty) 'gstin': gstin,
+      if (_bizEmail.text.trim().isNotEmpty) 'email': _bizEmail.text.trim(),
+      if (_bizPhone.text.trim().isNotEmpty) 'phone': _bizPhone.text.trim(),
+    };
     final authenticated = ref.read(isAuthenticatedProvider);
     try {
       if (authenticated) {
@@ -234,7 +259,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           return;
         }
       }
-      final result = await vm.placeOrder(contact, notes: _notes.text);
+      final result = await vm.placeOrder(contact, notes: _notes.text, business: business);
       if (!mounted) return;
       switch (result) {
         case CheckoutSucceeded(:final order):
@@ -522,6 +547,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         const SizedBox(height: AppSpacing.lg),
         _couponSection(checkout, authenticated),
         const SizedBox(height: AppSpacing.md),
+        if (ref.watch(settingsValueProvider).collectBusinessDetails) ...[
+          Text('Business details', style: context.text.titleMedium),
+          const SizedBox(height: 4),
+          Text('For your GST invoice — GSTIN is optional.', style: context.text.bodySmall),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(controller: _bizName, label: 'Business / shop name', textCapitalization: TextCapitalization.words),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(
+            controller: _gstin,
+            label: 'GSTIN (optional)',
+            maxLength: 15,
+            textCapitalization: TextCapitalization.characters,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(controller: _bizEmail, label: 'Business email (optional)', keyboardType: TextInputType.emailAddress),
+          const SizedBox(height: AppSpacing.sm),
+          AppTextField(controller: _bizPhone, label: 'Business phone (optional)', keyboardType: TextInputType.phone),
+          const SizedBox(height: AppSpacing.md),
+        ],
         AppTextField(
           controller: _notes,
           label: 'Delivery instructions (optional)',

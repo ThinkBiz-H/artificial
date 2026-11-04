@@ -24,11 +24,11 @@ const { createPaymentIntent, finalizePaidIntent } = require("../services/checkou
 // @route   POST /api/v1/payments/intent
 // @access  Private
 const createIntent = asyncHandler(async (req, res) => {
-  const { shippingAddress, shippingNotes, couponCode } = req.body;
+  const { shippingAddress, shippingNotes, couponCode, business } = req.body;
   if (!shippingAddress?.addressLine1 || !shippingAddress?.pincode) {
     throw new ApiError(400, "A delivery address is required");
   }
-  const intent = await createPaymentIntent(req.user._id, { shippingAddress, shippingNotes, couponCode });
+  const intent = await createPaymentIntent(req.user._id, { shippingAddress, shippingNotes, couponCode, business });
   sendResponse(res, 201, intent, "Proceed to payment");
 });
 

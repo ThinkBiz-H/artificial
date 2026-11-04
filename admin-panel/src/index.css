@@ -3,7 +3,7 @@
 
 @theme {
   /* Abj Jewellery palette — warm neutrals, deep wine brand, no blue. */
-  --color-bg: #ffffff;
+  --color-bg: #faf6f2; /* warm ivory page background */
   --color-surface: #fbf7f4;
   --color-surface-hover: #f5eee8;
   --color-border: #ece3dc;
@@ -114,3 +114,9 @@ body {
 .blog-editor .blog-editor-content [data-resize-container].ProseMirror-selectednode [data-resize-handle],
 .blog-editor .blog-editor-content [data-resize-state="true"] [data-resize-handle] { opacity: 1; }
 .blog-editor .blog-editor-content .ProseMirror-gapcursor:after { border-top: 1px solid var(--color-ink); }
+
+/* Dark ERP sidebar: a quiet scrollbar that matches the wine panel. */
+.sidebar-scroll { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.15) transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.15); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

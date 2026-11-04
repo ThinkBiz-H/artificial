@@ -176,6 +176,13 @@ abstract class ProductModel with _$ProductModel {
     @JsonKey(fromJson: stringListFromJson) @Default(<String>[]) List<String> sizes,
     @JsonKey(fromJson: nullableStringFromJson) String? metal,
     @JsonKey(fromJson: nullableStringFromJson) String? plating,
+    @JsonKey(fromJson: nullableStringFromJson) String? stone,
+    @JsonKey(fromJson: nullableStringFromJson) String? packaging,
+    @JsonKey(fromJson: nullableStringFromJson) String? hsnCode,
+    @JsonKey(fromJson: stringListFromJson) @Default(<String>[]) List<String> highlights,
+    @JsonKey(fromJson: stringListFromJson) @Default(<String>[]) List<String> occasions,
+    /// Running automatic offer (Admin > Offers), e.g. "Diwali Dhamaka".
+    @JsonKey(name: 'offer', fromJson: offerNameFromJson, includeToJson: false) @Default('') String offerName,
     @JsonKey(fromJson: nullableDoubleFromJson) double? weight,
     @JsonKey(fromJson: boolFromJson) @Default(false) bool hasVariants,
     @JsonKey(fromJson: variantListFromJson)
@@ -185,6 +192,10 @@ abstract class ProductModel with _$ProductModel {
     @Default(<ProductModel>[])
     List<ProductModel> crossSell,
     @JsonKey(fromJson: intFromJson) @Default(1) int minOrderQuantity,
+    /// Pieces per pack — quantities go in multiples of this.
+    @JsonKey(fromJson: intFromJson) @Default(1) int packSize,
+    /// Bulk discount tiers (Admin > Products > Wholesale).
+    @JsonKey(fromJson: bulkTiersFromJson, includeToJson: false) @Default(<BulkTier>[]) List<BulkTier> bulkPricing,
     @JsonKey(fromJson: nullableIntFromJson) int? maxOrderQuantity,
     @JsonKey(fromJson: stringFromJson) @Default('') String warranty,
     @JsonKey(fromJson: stringFromJson) @Default('') String returnPolicy,
@@ -239,7 +250,29 @@ abstract class ProductModel with _$ProductModel {
     return urls;
   }
 
-  int get maxQuantity => maxOrderQuantity ?? 10;
+  /// Pieces per pack (at least 1).
+  int get pack => packSize < 1 ? 1 : packSize;
+
+  /// Smallest orderable quantity: the MOQ rounded up to whole packs.
+  int get minQty => ((minOrderQuantity < 1 ? 1 : minOrderQuantity) / pack).ceil() * pack;
+
+  /// Best bulk tier reached by [qty] (same rule as the backend), or null.
+  BulkTier? tierFor(int qty) {
+    BulkTier? best;
+    for (final t in bulkPricing) {
+      if (t.minQty > 0 && t.discountPercent > 0 && qty >= t.minQty && (best == null || t.discountPercent > best.discountPercent)) best = t;
+    }
+    return best;
+  }
+
+  /// Per-piece price for [qty] after the bulk tier (dealer prices are applied by the server cart).
+  double priceFor(int qty, double base) {
+    final t = tierFor(qty);
+    return t == null ? base : (base * (1 - (t.discountPercent > 90 ? 90 : t.discountPercent) / 100) * 100).roundToDouble() / 100;
+  }
+
+  // Wholesale: no practical cap unless the admin sets one (stock still limits it).
+  int get maxQuantity => maxOrderQuantity ?? 10000;
 
   /// Colour options, falling back to the legacy name list (no swatch).
   List<ColorOptionModel> get productColorOptions => colorOptions.isNotEmpty
@@ -315,4 +348,24 @@ class ProductReviews {
             .map(RatingBucket.fromJson)
             .toList(growable: false),
       );
+}
+
+/** Product.offer → its display name ("" when no offer is running). */
+String offerNameFromJson(Object? value) => value is Map ? stringFromJson(value['name']) : '';
+
+/// Bulk discount tier: at least [minQty] pieces → [discountPercent] off.
+class BulkTier {
+  const BulkTier({required this.minQty, required this.discountPercent});
+  final int minQty;
+  final double discountPercent;
+}
+
+List<BulkTier> bulkTiersFromJson(Object? value) {
+  if (value is! List) return const <BulkTier>[];
+  return value
+      .whereType<Map>()
+      .map((m) => BulkTier(minQty: intFromJson(m['minQty']), discountPercent: doubleFromJson(m['discountPercent'])))
+      .where((t) => t.minQty > 0 && t.discountPercent > 0)
+      .toList(growable: false)
+    ..sort((a, b) => a.minQty.compareTo(b.minQty));
 }

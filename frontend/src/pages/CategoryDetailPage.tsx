@@ -1,5 +1,6 @@
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { useCategory } from "@/hooks/useCatalog";
+import { useCategory, useCategoryTree } from "@/hooks/useCatalog";
 import { useCategoryBanner } from "@/hooks/useCategoryBanner";
 import { CatalogView } from "@/components/catalog/CatalogView";
 import { Seo, breadcrumbJsonLd } from "@/components/common/Seo";
@@ -39,14 +40,27 @@ function CategoryHero({ banner, fallbackTitle }: { banner: Banner; fallbackTitle
   );
 }
 
+/** A category from the cached tree, with its ancestors, so a sub-category opens without waiting. */
+function findInTree(tree: Category[], slug: string, trail: Category[] = []): Category | undefined {
+  for (const node of tree) {
+    if (node.slug === slug) return { ...node, ancestors: trail };
+    const hit = findInTree(node.children ?? [], slug, [...trail, node]);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
 export function CategoryDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: category, isLoading, isError, refetch } = useCategory(slug);
+  const { data: fetched, isLoading, isError, refetch } = useCategory(slug);
+  const { data: tree } = useCategoryTree();
+  const cached = useMemo(() => (slug && tree ? findInTree(tree, slug) : undefined), [tree, slug]);
+  const category = fetched ?? cached;
   const { data: banner } = useCategoryBanner(category?._id);
 
-  if (isError) return <ErrorState title="Collection not found" description="This collection may have moved. Explore our other collections." onRetry={() => refetch()} />;
+  if (isError && !cached) return <ErrorState title="Collection not found" description="This collection may have moved. Explore our other collections." onRetry={() => refetch()} />;
 
-  if (isLoading || !category) {
+  if (!category) {
     return (
       <div className="container-x py-10">
         <Skeleton className="h-3 w-40" />
@@ -57,6 +71,7 @@ export function CategoryDetailPage() {
             <Skeleton key={i} className="aspect-[4/5] w-full" />
           ))}
         </div>
+        {isLoading && <span className="sr-only">Loading…</span>}
       </div>
     );
   }
@@ -68,14 +83,18 @@ export function CategoryDetailPage() {
     ...ancestors.map((a) => ({ name: a.name, path: `/categories/${a.slug}` })),
     { name: category.name, path: `/categories/${category.slug}` },
   ];
+  const seo = category.seo ?? {};
 
   return (
     <>
       <Seo
-        title={`${category.name} — Shop Online`}
+        title={seo.title || `${category.name} — Shop Online`}
         description={truncate(
-          category.description || `Shop ${category.name.toLowerCase()} online — premium artificial jewellery with easy returns and secure payments.`,
+          seo.description ||
+            category.description ||
+            `Shop ${category.name.toLowerCase()} online — premium artificial jewellery with easy returns and secure payments.`,
         )}
+        keywords={seo.keywords || undefined}
         image={category.image?.url}
         canonicalPath={`/categories/${category.slug}`}
         jsonLd={breadcrumbJsonLd(crumbs)}

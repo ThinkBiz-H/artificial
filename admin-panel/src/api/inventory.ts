@@ -22,4 +22,19 @@ export const inventoryApi = {
     apiClient
       .get<ApiEnvelope<{ movements: StockMovement[]; total: number; page: number; totalPages: number }>>("/inventory/movements", { params })
       .then((r) => r.data),
+
+  /** Goods received (purchase entry) into a warehouse. */
+  purchase: (values: StockOperation) => apiClient.post<ApiEnvelope<unknown>>("/inventory/purchase", values).then((r) => r.data),
+  /** Manual correction (+/−) — note required. */
+  adjust: (values: StockOperation) => apiClient.post<ApiEnvelope<unknown>>("/inventory/adjust", values).then((r) => r.data),
+  /** Moves stock to damaged. */
+  damaged: (values: StockOperation) => apiClient.post<ApiEnvelope<unknown>>("/inventory/damaged", values).then((r) => r.data),
 };
+
+export interface StockOperation {
+  productId: string;
+  variantId?: string;
+  warehouseId?: string;
+  quantity: number;
+  note?: string;
+}

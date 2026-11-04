@@ -5,6 +5,7 @@ import { QuantityStepper } from "@/components/ui/QuantityStepper";
 import { useRemoveCartItem, useUpdateCartItem } from "@/hooks/useCart";
 import { useWishlistToggle } from "@/hooks/useWishlistToggle";
 import { formatCurrency } from "@/lib/utils";
+import { packSizeOf } from "@/lib/wholesale";
 import { resolveLineImage, resolveLineOptions } from "@/lib/itemOptions";
 import { LineOptions } from "@/components/common/LineOptions";
 
@@ -57,7 +58,8 @@ export function CartLine({ item, compact, onNavigate }: { item: CartLineItem; co
             size="sm"
             value={item.quantity}
             min={item.product.minOrderQuantity || 1}
-            max={item.product.maxOrderQuantity || 99}
+            max={item.product.maxOrderQuantity || 10000}
+            step={packSizeOf(item.product)}
             disabled={updateItem.isPending}
             onChange={(q) => updateItem.mutate({ line: item, quantity: q })}
           />

@@ -72,6 +72,17 @@ export interface CheckoutQuote {
   taxIncluded: boolean;
   grandTotal: number;
   paymentMethods: CheckoutPaymentMethod[];
+  /** Wholesale minimum order (absent from older backends). */
+  minimumOrder?: { enabled: boolean; value: number; remaining: number; met: boolean };
+  wholesale?: { enabled: boolean; freeDelivery: boolean; collectBusinessDetails: boolean };
+}
+
+/** B2B buyer details sent with an order. */
+export interface BusinessDetails {
+  name?: string;
+  gstin?: string;
+  email?: string;
+  phone?: string;
 }
 
 export const checkoutApi = {

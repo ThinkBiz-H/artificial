@@ -6,11 +6,13 @@ const Product = require("../models/Product");
 const Variant = require("../models/Variant");
 const Coupon = require("../models/Coupon");
 const { resolveItemOptions, resolveItemImage } = require("../utils/itemOptions");
+const { unitPrice } = require("../utils/wholesalePricing");
 
-const resolveLine = (item) => {
+// Same per-unit price as checkout (dealer price, bulk tiers).
+const resolveLine = (item, customerType) => {
   if (item.variant && item.variant.product) {
     const v = item.variant;
-    const price = v.salePrice && v.salePrice > 0 ? v.salePrice : v.price;
+    const { price } = unitPrice({ product: item.product?.title ? item.product : v.product, variant: v, quantity: item.quantity, customerType });
     return {
       price,
       stock: v.stock,
@@ -20,7 +22,7 @@ const resolveLine = (item) => {
     };
   }
   const p = item.product;
-  const price = p.salePrice && p.salePrice > 0 ? p.salePrice : p.price;
+  const { price } = unitPrice({ product: p, quantity: item.quantity, customerType });
   return {
     price,
     stock: p.stock,
@@ -30,12 +32,12 @@ const resolveLine = (item) => {
   };
 };
 
-const computeCartTotals = (cart) => {
+const computeCartTotals = (cart, customerType = "wholesale") => {
   let subTotal = 0;
   const items = cart
     .filter((item) => item.product) // exclude nulls (deleted products)
     .map((item) => {
-      const { price } = resolveLine(item);
+      const { price } = resolveLine(item, customerType);
       const itemTotal = price * item.quantity;
       subTotal += itemTotal;
       // Options come from the live product/variant (falling back to what
@@ -112,7 +114,7 @@ const computeCartTotals = (cart) => {
 //   await user.populate("cart.product");
 //   await user.populate("cart.variant");
 
-//   const { items, subTotal } = computeCartTotals(user.cart);
+//   const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
 //   sendResponse(res, 200, { cart: items, subTotal }, "Item added to cart");
 // });
 
@@ -149,7 +151,7 @@ const computeCartTotals = (cart) => {
 //   await user.populate("cart.product");
 //   await user.populate("cart.variant");
 
-//   const { items, subTotal } = computeCartTotals(user.cart);
+//   const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
 //   sendResponse(res, 200, { cart: items, subTotal }, "Cart item updated");
 // });
 const addToCart = asyncHandler(async (req, res) => {
@@ -222,7 +224,7 @@ const addToCart = asyncHandler(async (req, res) => {
   await user.populate("cart.product");
   await user.populate("cart.variant");
 
-  const { items, subTotal } = computeCartTotals(user.cart);
+  const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
 
   sendResponse(
     res,
@@ -266,7 +268,7 @@ const updateCartItem = asyncHandler(async (req, res) => {
   await user.populate("cart.product");
   await user.populate("cart.variant");
 
-  const { items, subTotal } = computeCartTotals(user.cart);
+  const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
 
   sendResponse(res, 200, { cart: items, subTotal }, "Cart item updated");
 });
@@ -288,7 +290,7 @@ const removeCartItem = asyncHandler(async (req, res) => {
   await user.populate("cart.product");
   await user.populate("cart.variant");
 
-  const { items, subTotal } = computeCartTotals(user.cart);
+  const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
   sendResponse(res, 200, { cart: items, subTotal }, "Item removed from cart");
 });
 
@@ -309,7 +311,7 @@ const getCart = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
     .populate("cart.product")
     .populate("cart.variant");
-  const { items, subTotal } = computeCartTotals(user.cart);
+  const { items, subTotal } = computeCartTotals(user.cart, user.customerType);
   sendResponse(
     res,
     200,
@@ -328,7 +330,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id)
     .populate("cart.product")
     .populate("cart.variant");
-  const { subTotal } = computeCartTotals(user.cart);
+  const { subTotal } = computeCartTotals(user.cart, user.customerType);
 
   const coupon = await Coupon.findOne({ code: code.toUpperCase() });
   if (!coupon) throw new ApiError(404, "Invalid coupon code");

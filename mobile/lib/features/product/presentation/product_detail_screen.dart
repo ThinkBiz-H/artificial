@@ -68,7 +68,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (_optionsFor == product.id) return;
     _optionsFor = product.id;
     _options = ProductOptions.initial(product);
-    _quantity = product.minOrderQuantity < 1 ? 1 : product.minOrderQuantity;
+    _quantity = product.minQty;
   }
 
   Future<bool> _addToCart(ProductModel p, {bool silent = false}) async {
@@ -296,9 +296,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     Row(
                       children: [
                         QuantityStepper(
-                          value: _quantity.clamp(1, maxQty),
-                          min: p.minOrderQuantity < 1 ? 1 : p.minOrderQuantity,
-                          max: maxQty,
+                          value: _quantity.clamp(p.minQty, maxQty < p.minQty ? p.minQty : maxQty),
+                          min: p.minQty,
+                          step: p.pack,
+                          max: maxQty < p.minQty ? p.minQty : maxQty,
                           onChanged: o.canAddToCart ? (v) => setState(() => _quantity = v) : (_) {},
                         ),
                         const SizedBox(width: AppSpacing.sm),

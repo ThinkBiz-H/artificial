@@ -85,6 +85,25 @@ const userSchema = new mongoose.Schema(
       },
     ],
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    // B2B account type (Admin > Customers). Dealers and distributors get Product.dealerPrice.
+    // "retail" is kept for accounts created before retailer/distributor existed.
+    customerType: { type: String, enum: ["retailer", "wholesale", "dealer", "distributor", "retail"], default: "wholesale" },
+    // Business verification (GST / shop documents checked by the team).
+    businessVerification: {
+      status: { type: String, enum: ["unverified", "pending", "verified", "rejected"], default: "unverified" },
+      note: { type: String, trim: true, default: "" },
+      verifiedAt: { type: Date, default: null },
+    },
+    // Credit the business is allowed (₹, for invoicing on credit terms); 0 = none.
+    creditLimit: { type: Number, min: 0, default: 0 },
+    // Balances — every change is logged in CustomerLedger.
+    walletBalance: { type: Number, default: 0 },
+    rewardPoints: { type: Number, default: 0 },
+    // Business profile — saved from checkout's business details.
+    businessProfile: {
+      name: { type: String, trim: true, default: "" },
+      gstin: { type: String, trim: true, uppercase: true, default: "" },
+    },
     // Empty/unset (the default for every existing admin) = full access,
     // exactly as before this field existed. Only an admin explicitly given
     // a non-empty permissions array is restricted to just those — this is

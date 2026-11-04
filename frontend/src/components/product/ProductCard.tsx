@@ -10,6 +10,7 @@ import {
   productImage,
   isNewProduct,
 } from "@/lib/utils";
+import { minQtyOf } from "@/lib/wholesale";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { useAddToCart } from "@/hooks/useCart";
 import { useWishlistToggle } from "@/hooks/useWishlistToggle";
@@ -107,8 +108,9 @@ export function ProductCard({
 
   const quickAdd = () => {
     if (product.hasVariants) return navigate(href);
+    // Wholesale: adds the minimum order quantity (whole packs).
     addToCart.mutate(
-      { product, productId: product._id, quantity: 1 },
+      { product, productId: product._id, quantity: minQtyOf(product) },
       { onSuccess: () => openCart(true) },
     );
   };

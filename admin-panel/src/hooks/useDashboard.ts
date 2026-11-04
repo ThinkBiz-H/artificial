@@ -22,6 +22,9 @@ export function useTopCustomers(limit?: number) {
 export function useCategoryAnalytics() {
   return useQuery({ queryKey: ["dashboard", "category-analytics"], queryFn: () => dashboardApi.categoryAnalytics(), select: (r) => r.data.categoryAnalytics });
 }
+export function useLatestReviews(limit?: number) {
+  return useQuery({ queryKey: ["dashboard", "latest-reviews", limit], queryFn: () => dashboardApi.latestReviews(limit), select: (r) => r.data.reviews });
+}
 export function useMonthlyRevenue(months?: number) {
   return useQuery({ queryKey: ["dashboard", "monthly-revenue", months], queryFn: () => dashboardApi.monthlyRevenue(months), select: (r) => r.data.monthlyRevenue });
 }

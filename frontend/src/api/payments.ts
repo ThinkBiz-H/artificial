@@ -1,6 +1,7 @@
 import { apiClient } from "./client";
 import type { ApiEnvelope, Order, RazorpayOrder, PaymentTransaction } from "@/types";
 import type { ShippingAddressInput } from "./orders";
+import type { BusinessDetails } from "./checkout";
 
 export interface VerifyPaymentPayload {
   razorpay_order_id: string;
@@ -17,7 +18,7 @@ export interface RazorpaySuccess {
 
 export const paymentsApi = {
   /** Online checkout: price the bag and open a Razorpay order — no order exists until payment succeeds. */
-  createIntent: (payload: { shippingAddress: ShippingAddressInput; couponCode?: string; shippingNotes?: string }) =>
+  createIntent: (payload: { shippingAddress: ShippingAddressInput; couponCode?: string; shippingNotes?: string; business?: BusinessDetails }) =>
     apiClient
       .post<ApiEnvelope<{ razorpayOrder: RazorpayOrder; razorpayKeyId: string; amount: number }>>("/payments/intent", payload)
       .then((r) => r.data),

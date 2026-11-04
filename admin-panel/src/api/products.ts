@@ -10,7 +10,7 @@ export type VariantPayload = Omit<Partial<Variant>, "images"> & { images?: File[
  * blank). For free-text fields the admin may clear, send them explicitly —
  * the backend treats "" as "clear this value".
  */
-function withClearableText(form: FormData, values: Record<string, unknown>, keys: string[] = ["metal", "plating"]) {
+function withClearableText(form: FormData, values: Record<string, unknown>, keys: string[] = ["metal", "plating", "stone", "packaging", "hsnCode", "designCode", "videoUrl"]) {
   keys.forEach((key) => {
     if (typeof values[key] === "string") form.set(key, values[key] as string);
   });
@@ -50,6 +50,29 @@ export interface ProductFormValues {
   sizes?: string[];
   metal?: string;
   plating?: string;
+  stone?: string;
+  packaging?: string;
+  occasions?: string[];
+  collections?: string[];
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  isTopSelling?: boolean;
+  hsnCode?: string;
+  designCode?: string;
+  packSize?: number;
+  dealerPrice?: number;
+  bulkPricing?: { minQty: number; discountPercent: number }[];
+  shippingClass?: string;
+  videoUrl?: string;
+  relatedProducts?: string[];
+  crossSell?: string[];
+  /** Create only: warehouse that receives the opening stock. */
+  warehouse?: string;
+  /** Update only: saved image URLs in display order, and the cover image. */
+  imageOrder?: string[];
+  thumbnailUrl?: string;
+  highlights?: string[];
+  dimensions?: { length?: number; width?: number; height?: number; unit?: "cm" | "in" };
   weight?: number;
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
@@ -87,6 +110,25 @@ export const productsApi = {
   },
 
   remove: (id: string) => apiClient.delete<ApiEnvelope<{}>>(`/products/${id}`).then((r) => r.data),
+
+  /** Uploads a video file and/or an ordered 360° frame set. */
+  uploadMedia: (id: string, media: { video?: File | null; spin?: File[] }) => {
+    const form = new FormData();
+    if (media.video) form.append("video", media.video);
+    (media.spin ?? []).forEach((f) => form.append("spin", f));
+    return apiClient
+      .post<ApiEnvelope<{ product: Product }>>(`/products/${id}/media`, form, { headers: { "Content-Type": "multipart/form-data" } })
+      .then((r) => r.data);
+  },
+  removeMedia: (id: string, kind: "video" | "spin") =>
+    apiClient.delete<ApiEnvelope<{ product: Product }>>(`/products/${id}/media/${kind}`).then((r) => r.data),
+
+  /** Status / merchandising flags for many products at once. */
+  bulkUpdate: (ids: string[], set: Partial<Record<"status" | "featured" | "isTrending" | "isTopSelling" | "isNewArrival", string | boolean>>) =>
+    apiClient.patch<ApiEnvelope<{ matched: number; modified: number }>>("/products/bulk", { ids, set }).then((r) => r.data),
+
+  /** Copies a product as a draft (same photos, new SKU, no stock). */
+  duplicate: (id: string) => apiClient.post<ApiEnvelope<{ product: Product }>>(`/products/${id}/duplicate`).then((r) => r.data),
 
   restore: (id: string) => apiClient.patch<ApiEnvelope<{ product: Product }>>(`/products/${id}/restore`).then((r) => r.data),
 

@@ -26,6 +26,7 @@ const {
   priceCheckout,
   buildOrderData,
   razorpayError,
+  rememberBusiness,
 } = require("../services/checkout.service");
 // @desc    Create a new order (COD immediate, Razorpay creates a payment order)
 // @route   POST /api/v1/orders
@@ -34,7 +35,7 @@ const {
 // POST /payments/intent so no order exists until the payment succeeds. The
 // Razorpay branch below is kept unchanged for existing clients (Flutter).
 const createOrder = asyncHandler(async (req, res) => {
-  const { shippingAddress, paymentMethod, couponCode, shippingNotes } =
+  const { shippingAddress, paymentMethod, couponCode, shippingNotes, business } =
     req.body;
 
   // Checked before anything is created, against the same Admin > Settings >
@@ -47,9 +48,10 @@ const createOrder = asyncHandler(async (req, res) => {
     couponCode,
   });
   const { user, orderItems, coupon } = priced;
+  await rememberBusiness(user._id, business);
 
   const order = await Order.create({
-    ...buildOrderData(priced, { shippingAddress, shippingNotes, paymentMethod }),
+    ...buildOrderData(priced, { shippingAddress, shippingNotes, paymentMethod, business }),
     paymentStatus: "Pending",
     orderStatus: "Pending",
     statusHistory: [

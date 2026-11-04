@@ -6,6 +6,7 @@ const { processPendingJobs } = require('./notificationQueue.service');
 const { notify } = require('./notification.service');
 const { processScheduledCampaigns } = require('./notificationCampaign.service');
 const logger = require('../utils/logger');
+const { syncOffers } = require('./offer.service');
 
 /**
  * Auto-publishes any Blog post whose status is still "scheduled" but whose
@@ -64,6 +65,17 @@ let intervals = [];
  * this explicitly rather than hiding it).
  */
 const startScheduler = () => {
+  // Automatic offers start and end on time (and once at boot).
+  syncOffers().catch((err) => logger.error(`Offer sync failed: ${err.message}`));
+  intervals.push(
+    setInterval(async () => {
+      try {
+        await syncOffers();
+      } catch (err) {
+        logger.error(`Offer sync failed: ${err.message}`);
+      }
+    }, 60 * 1000),
+  );
   intervals.push(
     setInterval(async () => {
       try {

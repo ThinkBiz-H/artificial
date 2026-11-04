@@ -18,6 +18,10 @@ export function useStoreInfo() {
   // Admin Brand Management logos, falling back to the bundled logo.
   const logo = brand?.logos?.headerLogo || BRAND_LOGO;
   const shipping = settings?.shipping;
+  // Wholesale defaults match the backend (min ₹5000, free delivery, no COD)
+  // until settings load.
+  const wholesale = settings?.wholesale;
+  const wholesaleEnabled = wholesale?.enabled ?? true;
 
   return {
     isLoading,
@@ -39,7 +43,11 @@ export function useStoreInfo() {
     social: (settings?.social || {}) as Record<string, string | undefined>,
     freeShippingEnabled: !!shipping?.freeShippingEnabled,
     freeShippingThreshold: shipping?.freeShippingThreshold ?? 0,
-    codEnabled: settings?.payment?.codEnabled ?? true,
+    codEnabled: (settings?.payment?.codEnabled ?? true) && (!wholesaleEnabled || !!wholesale?.allowCod),
+    wholesaleEnabled,
+    minOrderValue: wholesaleEnabled ? (wholesale?.minOrderValue ?? 5000) : 0,
+    freeDelivery: wholesaleEnabled ? (wholesale?.freeDelivery ?? true) : false,
+    collectBusinessDetails: wholesaleEnabled && (wholesale?.collectBusinessDetails ?? true),
     onlinePaymentEnabled: settings?.payment?.onlinePaymentEnabled ?? true,
     whatsapp: settings?.whatsapp,
   };

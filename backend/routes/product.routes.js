@@ -20,6 +20,11 @@ const {
   getTrendingProducts,
   getBestSellers,
   getTopRatedProducts,
+  getProductFacets,
+  bulkUpdateProducts,
+  duplicateProduct,
+  uploadProductMedia,
+  removeProductMedia,
 } = require("../controllers/product.controller");
 
 const {
@@ -103,6 +108,7 @@ router.get("/", cacheMiddleware("products", 120, live), getProducts);
 router.get("/featured/list", cacheMiddleware("products", 120, live), getFeaturedProducts);
 router.get("/new-arrivals/list", cacheMiddleware("products", 120, live), getNewArrivals);
 router.get("/trending/list", cacheMiddleware("products", 120, live), getTrendingProducts);
+router.get("/facets/list", cacheMiddleware("products", 300, live), getProductFacets);
 router.get("/bestsellers/list", cacheMiddleware("products", 120, live), getBestSellers);
 router.get("/top-rated/list", cacheMiddleware("products", 120, live), getTopRatedProducts);
 
@@ -130,6 +136,10 @@ router.put(
   validate,
   updateProduct,
 );
+router.patch("/bulk", protect, authorize("admin"), requirePermission("Products", "Edit"), bulkUpdateProducts);
+router.post("/:id/duplicate", protect, authorize("admin"), requirePermission("Products", "Create"), duplicateProduct);
+router.post("/:id/media", protect, authorize("admin"), requirePermission("Products", "Edit"), upload.productMediaFields, uploadProductMedia);
+router.delete("/:id/media/:kind", protect, authorize("admin"), requirePermission("Products", "Edit"), removeProductMedia);
 router.delete("/:id", protect, authorize("admin"), requirePermission("Products", "Delete"), deleteProduct);
 router.patch("/:id/restore", protect, authorize("admin"), requirePermission("Products", "Edit"), restoreProduct);
 router.delete(

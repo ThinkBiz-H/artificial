@@ -4,8 +4,16 @@ import type { ApiEnvelope, Order, TopProduct, Product, Variant } from "@/types";
 export const dashboardApi = {
   stats: () =>
     apiClient
-      .get<ApiEnvelope<{ totalSales: number; todaySales: number; totalOrders: number; totalProducts: number; totalCustomers: number; revenue: number; todayOrders: number; pendingOrders: number; activeUsers: number }>>(
+      .get<ApiEnvelope<{ totalSales: number; todaySales: number; totalOrders: number; totalProducts: number; totalCustomers: number; revenue: number; todayOrders: number; pendingOrders: number; activeUsers: number; totalCategories?: number; mainCategories?: number; wholesaleBuyers?: number; lowStockCount?: number }>>(
         "/admin/dashboard/stats",
+      )
+      .then((r) => r.data),
+
+  latestReviews: (limit = 6) =>
+    apiClient
+      .get<ApiEnvelope<{ reviews: { _id: string; rating: number; comment?: string; createdAt: string; userName: string; product: { _id: string; title: string } }[] }>>(
+        "/admin/dashboard/latest-reviews",
+        { params: { limit } },
       )
       .then((r) => r.data),
 

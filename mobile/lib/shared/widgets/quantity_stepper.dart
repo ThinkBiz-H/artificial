@@ -11,7 +11,11 @@ class QuantityStepper extends StatelessWidget {
     this.max = 10,
     this.compact = false,
     this.busy = false,
+    this.step = 1,
   });
+
+  /// Change per tap (pack size for wholesale products).
+  final int step;
 
   final int value;
   final ValueChanged<int> onChanged;
@@ -45,7 +49,7 @@ class QuantityStepper extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          button(Icons.remove_rounded, value > min, () => onChanged(value - 1)),
+          button(Icons.remove_rounded, value - step >= min, () => onChanged(value - step)),
           SizedBox(
             width: compact ? 26 : 34,
             child: busy
@@ -56,7 +60,7 @@ class QuantityStepper extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.titleMedium),
           ),
-          button(Icons.add_rounded, value < max, () => onChanged(value + 1)),
+          button(Icons.add_rounded, value + step <= max, () => onChanged(value + step)),
         ],
       ),
     );

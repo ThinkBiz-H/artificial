@@ -8,6 +8,7 @@ const PaymentIntent = require("../models/PaymentIntent");
 const razorpayInstance = require("../config/razorpay");
 const shippingService = require("./shipping.service");
 const { buildOrderItems, calculateTotals, calculateRazorpayDiscount, reduceStock } = require("./order.service");
+const { getWholesaleRules, minimumOrderStatus, assertMinimumOrder, normalizeBusiness } = require("./wholesale.service");
 
 /**
  * Which payment methods the store accepts, from Admin > Settings > Payment
@@ -17,8 +18,11 @@ const { buildOrderItems, calculateTotals, calculateRazorpayDiscount, reduceStock
 const getPaymentMethods = async () => {
   const settings = await Settings.findOne().lean();
   const legacyCod = settings?.featureFlags?.codEnabled;
+  // Wholesale mode turns COD off unless the admin explicitly allows it.
+  const wholesale = await getWholesaleRules(settings);
+  const wholesaleCod = !wholesale.enabled || wholesale.allowCod;
   return {
-    cod: settings?.payment?.codEnabled !== false && legacyCod !== false,
+    cod: settings?.payment?.codEnabled !== false && legacyCod !== false && wholesaleCod,
     online: settings?.payment?.onlinePaymentEnabled !== false && settings?.integrations?.razorpayEnabled !== false,
   };
 };
@@ -41,7 +45,8 @@ const assertPaymentMethodAllowed = async (paymentMethod) => {
  */
 const priceLines = async ({ cartItems, userId = null, pincode, paymentMethod, couponCode, strictCoupon = true }) => {
   if (!cartItems.length) throw new ApiError(400, "Your cart is empty");
-  const { orderItems, subTotal } = await buildOrderItems(cartItems);
+  const buyer = userId ? await User.findById(userId).select("customerType").lean() : null;
+  const { orderItems, subTotal } = await buildOrderItems(cartItems, { customerType: buyer?.customerType || "wholesale" });
 
   let discountAmount = 0;
   let coupon = null;
@@ -68,6 +73,13 @@ const priceLines = async ({ cartItems, userId = null, pincode, paymentMethod, co
   const shipping = shippingQuoted
     ? await shippingService.calculateShipping({ deliveryPincode: pincode, weight: 0.5, cod: paymentMethod === "cod", subTotal })
     : { shippingCharge: 0, courierName: null, courierId: null, estimatedDays: null, freeShipping: false };
+  // Wholesale orders ship free (courier choice and ETA are kept).
+  const wholesale = await getWholesaleRules();
+  const minimumOrder = minimumOrderStatus(wholesale, subTotal);
+  if (wholesale.enabled && wholesale.freeDelivery) {
+    shipping.shippingCharge = 0;
+    shipping.freeShipping = true;
+  }
 
   const razorpayDiscount = calculateRazorpayDiscount(subTotal, paymentMethod);
   const settings = await Settings.findOne().select("tax").lean();
@@ -79,7 +91,7 @@ const priceLines = async ({ cartItems, userId = null, pincode, paymentMethod, co
     pricesIncludeTax: settings?.tax?.pricesIncludeTax !== false,
   });
 
-  return { orderItems, subTotal, coupon, couponError, discountAmount, razorpayDiscount, shipping, shippingQuoted, tax, taxIncluded, grandTotal };
+  return { orderItems, subTotal, coupon, couponError, discountAmount, razorpayDiscount, shipping, shippingQuoted, tax, taxIncluded, grandTotal, wholesale, minimumOrder };
 };
 
 /** Bag lines of a logged-in user's server cart, in the shape priceLines() expects. */
@@ -104,6 +116,7 @@ const priceCheckout = async (userId, { shippingAddress, paymentMethod, couponCod
   if (!/^\d{6}$/.test(String(shippingAddress?.pincode || ""))) throw new ApiError(400, "A valid 6-digit pincode is required");
   const { user, cartItems } = await userCartLines(userId);
   const priced = await priceLines({ cartItems, userId, pincode: shippingAddress.pincode, paymentMethod, couponCode });
+  assertMinimumOrder(priced.wholesale, priced.subTotal);
   return { user, ...priced };
 };
 
@@ -126,7 +139,7 @@ const quoteCheckout = async ({ userId, items = [], pincode, paymentMethod, coupo
         .map((i) => ({
           product: i.productId,
           variant: i.variantId || null,
-          quantity: Math.min(99, Math.floor(Number(i.quantity))),
+          quantity: Math.min(10000, Math.floor(Number(i.quantity))), // wholesale quantities
           color: i.color,
           size: i.size,
         }));
@@ -158,15 +171,22 @@ const quoteCheckout = async ({ userId, items = [], pincode, paymentMethod, coupo
     taxIncluded: priced.taxIncluded,
     grandTotal: priced.grandTotal,
     paymentMethods,
+    minimumOrder: priced.minimumOrder,
+    wholesale: {
+      enabled: priced.wholesale.enabled,
+      freeDelivery: priced.wholesale.freeDelivery,
+      collectBusinessDetails: priced.wholesale.collectBusinessDetails,
+    },
   };
 };
 
 /** The Order document fields for a priced checkout (payment status/info are added by the caller). */
-const buildOrderData = (priced, { shippingAddress, shippingNotes, paymentMethod }) => ({
+const buildOrderData = (priced, { shippingAddress, shippingNotes, paymentMethod, business }) => ({
   user: priced.user._id,
   items: priced.orderItems,
   shippingAddress,
   shippingNotes,
+  business: normalizeBusiness(business),
   coupon: priced.coupon ? { code: priced.coupon.code, discountAmount: priced.discountAmount } : undefined,
   discountAmount: priced.razorpayDiscount.amount,
   discountPercentage: priced.razorpayDiscount.percentage,
@@ -187,6 +207,13 @@ const buildOrderData = (priced, { shippingAddress, shippingNotes, paymentMethod 
   },
 });
 
+/** Keeps the buyer's latest business name / GSTIN on their account (business customer). */
+const rememberBusiness = async (userId, business) => {
+  const b = normalizeBusiness(business);
+  if (!userId || !b || (!b.name && !b.gstin)) return;
+  await User.updateOne({ _id: userId }, { $set: { "businessProfile.name": b.name, "businessProfile.gstin": b.gstin } }).catch(() => {});
+};
+
 /** Turns a Razorpay SDK failure into a clear 502 (never a 401 the storefront would read as "session expired"). */
 const razorpayError = (err) => {
   const detail = err?.error?.description || err?.message || "unknown error";
@@ -197,10 +224,11 @@ const razorpayError = (err) => {
  * Online checkout, step 1: price the bag and open a Razorpay order. No Order
  * is created — the priced order waits in a PaymentIntent until payment succeeds.
  */
-const createPaymentIntent = async (userId, { shippingAddress, shippingNotes, couponCode }) => {
+const createPaymentIntent = async (userId, { shippingAddress, shippingNotes, couponCode, business }) => {
   await assertPaymentMethodAllowed("razorpay");
   const priced = await priceCheckout(userId, { shippingAddress, paymentMethod: "razorpay", couponCode });
-  const orderData = buildOrderData(priced, { shippingAddress, shippingNotes, paymentMethod: "razorpay" });
+  const orderData = buildOrderData(priced, { shippingAddress, shippingNotes, paymentMethod: "razorpay", business });
+  await rememberBusiness(userId, business);
 
   let razorpayOrder;
   try {
@@ -295,4 +323,5 @@ module.exports = {
   createPaymentIntent,
   finalizePaidIntent,
   razorpayError,
+  rememberBusiness,
 };

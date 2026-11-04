@@ -10,11 +10,11 @@ export function Table({ children }: { children: ReactNode }) {
 }
 
 export function Thead({ children }: { children: ReactNode }) {
-  return <thead className="border-b border-border bg-surface/60">{children}</thead>;
+  return <thead className="border-b border-border bg-surface/70">{children}</thead>;
 }
 
 export function Th({ children, className }: { children: ReactNode; className?: string }) {
-  return <th className={cn("px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted", className)}>{children}</th>;
+  return <th className={cn("whitespace-nowrap px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted", className)}>{children}</th>;
 }
 
 export function Tbody({ children }: { children: ReactNode }) {
@@ -23,12 +23,12 @@ export function Tbody({ children }: { children: ReactNode }) {
 
 export function Tr({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
-    <tr onClick={onClick} className={cn("transition-colors hover:bg-surface/60", onClick && "cursor-pointer", className)}>
+    <tr onClick={onClick} className={cn("transition-colors hover:bg-[#fdf9f6]", onClick && "cursor-pointer", className)}>
       {children}
     </tr>
   );
 }
 
 export function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cn("px-4 py-3 align-middle text-ink", className)}>{children}</td>;
+  return <td className={cn("px-5 py-3.5 align-middle text-ink", className)}>{children}</td>;
 }

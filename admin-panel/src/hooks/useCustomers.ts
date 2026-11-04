@@ -1,3 +1,4 @@
+import type { CustomerType } from "@/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { customersApi, type CustomerListParams } from "@/api/customers";
 import { toast } from "sonner";
@@ -18,6 +19,19 @@ export function useCustomer(id: string | undefined) {
     queryFn: () => customersApi.byId(id as string),
     enabled: !!id,
     select: (r) => r.data.user,
+  });
+}
+
+export function useUpdateCustomerType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, customerType }: { id: string; customerType: CustomerType }) => customersApi.updateCustomerType(id, customerType),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["admin-customers"] });
+      qc.invalidateQueries({ queryKey: ["admin-customer", vars.id] });
+      toast.success(`Account type set to ${vars.customerType}`);
+    },
+    onError: (err) => toast.error(getErrorMessage(err)),
   });
 }
 

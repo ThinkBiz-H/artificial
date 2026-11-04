@@ -17,6 +17,14 @@ const DashboardPage = lazyRouteComponent(() => import("@/pages/dashboard/Dashboa
 const ProductsListPage = lazyRouteComponent(() => import("@/pages/products/ProductsListPage"), "ProductsListPage");
 const ProductFormPage = lazyRouteComponent(() => import("@/pages/products/ProductFormPage"), "ProductFormPage");
 const CategoriesPage = lazyRouteComponent(() => import("@/pages/categories/CategoriesPage"), "CategoriesPage");
+const MainCategoriesPage = lazyRouteComponent(() => import("@/pages/categories/CategoryViews"), "MainCategoriesPage");
+const SubCategoriesPage = lazyRouteComponent(() => import("@/pages/categories/CategoryViews"), "SubCategoriesPage");
+const BarcodeLabelsPage = lazyRouteComponent(() => import("@/pages/inventory/BarcodeLabelsPage"), "BarcodeLabelsPage");
+const CollectionsTagsPage = lazyRouteComponent(() => import("@/pages/catalog/CollectionsTagsPage"), "CollectionsTagsPage");
+const OffersPage = lazyRouteComponent(() => import("@/pages/offers/OffersPage"), "OffersPage");
+const MinimumOrderSettingsPage = lazyRouteComponent(() => import("@/pages/settings/SettingsShortcuts"), "MinimumOrderSettingsPage");
+const CloudinarySettingsPage = lazyRouteComponent(() => import("@/pages/settings/SettingsShortcuts"), "CloudinarySettingsPage");
+const DeliveryChargesPage = lazyRouteComponent(() => import("@/pages/settings/SettingsShortcuts"), "DeliveryChargesPage");
 const BrandsPage = lazyRouteComponent(() => import("@/pages/brands/BrandsPage"), "BrandsPage");
 const CustomersListPage = lazyRouteComponent(() => import("@/pages/customers/CustomersListPage"), "CustomersListPage");
 const CustomerDetailPage = lazyRouteComponent(() => import("@/pages/customers/CustomerDetailPage"), "CustomerDetailPage");
@@ -128,6 +136,14 @@ const orderDetailRoute = createRoute({
   component: OrderDetailPage,
 });
 
+const mainCategoriesRoute = createRoute({ getParentRoute: () => appRoute, path: "/categories/main", component: MainCategoriesPage });
+const subCategoriesRoute = createRoute({ getParentRoute: () => appRoute, path: "/categories/sub", component: SubCategoriesPage });
+const barcodeLabelsRoute = createRoute({ getParentRoute: () => appRoute, path: "/inventory/barcodes", component: BarcodeLabelsPage });
+const collectionsTagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/catalog/collections", component: CollectionsTagsPage });
+const offersRoute = createRoute({ getParentRoute: () => appRoute, path: "/offers", component: OffersPage });
+const minimumOrderRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/minimum-order", component: MinimumOrderSettingsPage });
+const cloudinaryRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/cloudinary", component: CloudinarySettingsPage });
+const deliveryChargesRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/delivery", component: DeliveryChargesPage });
 const couponsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/coupons",
@@ -271,6 +287,14 @@ const routeTree = rootRoute.addChildren([
     productNewRoute,
     productEditRoute,
     categoriesRoute,
+    mainCategoriesRoute,
+    subCategoriesRoute,
+    offersRoute,
+    collectionsTagsRoute,
+    barcodeLabelsRoute,
+    minimumOrderRoute,
+    deliveryChargesRoute,
+    cloudinaryRoute,
     brandsRoute,
     customersRoute,
     customerDetailRoute,

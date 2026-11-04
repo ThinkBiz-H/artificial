@@ -12,7 +12,10 @@ const { resolveItemOptions, resolveItemImage } = require("../utils/itemOptions")
  */
 const roundMoney = (n) => Math.round(n * 100) / 100;
 
-const buildOrderItems = async (cartItems) => {
+const { unitPrice } = require("../utils/wholesalePricing");
+
+/** Priced order lines. `customerType` unlocks dealer pricing; bulk tiers apply to everyone. */
+const buildOrderItems = async (cartItems, { customerType = "wholesale" } = {}) => {
   const orderItems = [];
   let subTotal = 0;
 
@@ -82,13 +85,20 @@ const buildOrderItems = async (cartItems) => {
       }
     }
 
-    const price = variant
-      ? variant.salePrice && variant.salePrice > 0
-        ? variant.salePrice
-        : variant.price
-      : product.salePrice && product.salePrice > 0
-        ? product.salePrice
-        : product.price;
+    // Wholesale quantity rules (Admin > Products > Wholesale).
+    const moq = Math.max(1, Number(product.minOrderQuantity) || 1);
+    const pack = Math.max(1, Number(product.packSize) || 1);
+    if (item.quantity < moq) {
+      throw new ApiError(400, `"${product.title}" has a minimum order of ${moq} pieces.`);
+    }
+    if (product.maxOrderQuantity && item.quantity > product.maxOrderQuantity) {
+      throw new ApiError(400, `"${product.title}" can be ordered up to ${product.maxOrderQuantity} pieces at a time.`);
+    }
+    if (pack > 1 && item.quantity % pack !== 0) {
+      throw new ApiError(400, `"${product.title}" is sold in packs of ${pack} — choose a multiple of ${pack}.`);
+    }
+
+    const { price } = unitPrice({ product, variant, quantity: item.quantity, customerType });
 
     const listPrice = variant ? variant.price : product.price;
     const gstRate = Number.isFinite(product.gstRate) ? product.gstRate : 18;

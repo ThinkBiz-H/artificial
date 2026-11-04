@@ -6,6 +6,7 @@ export function QuantityStepper({
   onChange,
   min = 1,
   max = 99,
+  step = 1,
   disabled,
   size = "md",
   className,
@@ -14,6 +15,8 @@ export function QuantityStepper({
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  /** Change per click (pack size for wholesale products). */
+  step?: number;
   disabled?: boolean;
   size?: "sm" | "md";
   className?: string;
@@ -23,8 +26,8 @@ export function QuantityStepper({
     <div className={cn("inline-flex items-center rounded-pill border border-border bg-surface", className)}>
       <button
         type="button"
-        disabled={disabled || value <= min}
-        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={disabled || value - step < min}
+        onClick={() => onChange(Math.max(min, value - step))}
         className={cn(btn, "flex items-center justify-center text-fg transition-colors hover:text-accent disabled:opacity-30")}
         aria-label="Decrease quantity"
       >
@@ -35,8 +38,8 @@ export function QuantityStepper({
       </span>
       <button
         type="button"
-        disabled={disabled || value >= max}
-        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={disabled || value + step > max}
+        onClick={() => onChange(Math.min(max, value + step))}
         className={cn(btn, "flex items-center justify-center text-fg transition-colors hover:text-accent disabled:opacity-30")}
         aria-label="Increase quantity"
       >

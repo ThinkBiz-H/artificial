@@ -156,7 +156,8 @@ class _QuickAddState extends ConsumerState<_QuickAdd> {
     if (p.hasVariants) return widget.onChoose();
     setState(() => _busy = true);
     try {
-      await ref.read(cartProvider.notifier).add(product: p, quantity: 1);
+      // Wholesale: adds the minimum order quantity (whole packs).
+      await ref.read(cartProvider.notifier).add(product: p, quantity: p.minQty);
       if (mounted) context.showSnack('Added to your bag');
     } catch (e) {
       if (mounted) context.showError(e);

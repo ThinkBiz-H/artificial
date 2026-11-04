@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendResponse } = require('../utils/ApiResponse');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Category = require('../models/Category');
 const Variant = require('../models/Variant');
 const User = require('../models/User');
 const Session = require('../models/Session');
@@ -33,6 +34,13 @@ const getStats = asyncHandler(async (req, res) => {
     // Signed-in shoppers with a session used in the last 24 hours.
     Session.distinct('user', { revokedAt: null, lastUsedAt: { $gte: dayAgo } }),
   ]);
+  // Wholesale extras: categories, buyers who ordered with business details, low stock.
+  const [totalCategories, mainCategories, wholesaleBuyerIds, lowStockCount] = await Promise.all([
+    Category.countDocuments(),
+    Category.countDocuments({ parent: null }),
+    Order.distinct('user', { $or: [{ 'business.name': { $nin: ['', null] } }, { 'business.gstin': { $nin: ['', null] } }] }),
+    Product.countDocuments({ isDeleted: false, hasVariants: { $ne: true }, stock: { $lte: 10 } }), // same threshold as /dashboard/low-stock
+  ]);
   const activeUsers = activeUserIds.length
     ? await User.countDocuments({ _id: { $in: activeUserIds }, role: 'user' })
     : 0;
@@ -53,6 +61,10 @@ const getStats = asyncHandler(async (req, res) => {
       todayOrders,
       pendingOrders,
       activeUsers,
+      totalCategories,
+      mainCategories,
+      wholesaleBuyers: wholesaleBuyerIds.length,
+      lowStockCount,
     },
     'Dashboard stats fetched successfully'
   );
@@ -247,6 +259,31 @@ const getMonthlyRevenue = asyncHandler(async (req, res) => {
   sendResponse(res, 200, { months, monthlyRevenue }, 'Monthly revenue fetched successfully');
 });
 
+// @desc    Latest product reviews across the catalogue
+// @route   GET /api/v1/admin/dashboard/latest-reviews?limit=6
+// @access  Private/Admin
+const getLatestReviews = asyncHandler(async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 6, 20);
+  const reviews = await Product.aggregate([
+    { $match: { isDeleted: false, "reviews.0": { $exists: true } } },
+    { $unwind: "$reviews" },
+    { $sort: { "reviews.createdAt": -1 } },
+    { $limit: limit },
+    { $lookup: { from: "users", localField: "reviews.user", foreignField: "_id", as: "u" } },
+    {
+      $project: {
+        _id: "$reviews._id",
+        rating: "$reviews.rating",
+        comment: "$reviews.comment",
+        createdAt: "$reviews.createdAt",
+        product: { _id: "$_id", title: "$title" },
+        userName: { $ifNull: [{ $arrayElemAt: ["$u.name", 0] }, "Customer"] },
+      },
+    },
+  ]);
+  sendResponse(res, 200, { reviews }, "Latest reviews fetched successfully");
+});
+
 module.exports = {
   getStats,
   getRecentOrders,
@@ -256,4 +293,5 @@ module.exports = {
   getTopCustomers,
   getCategoryAnalytics,
   getMonthlyRevenue,
+  getLatestReviews,
 };

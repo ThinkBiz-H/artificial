@@ -67,6 +67,10 @@ const productSchema = new mongoose.Schema(
     // an optional product video — additive "Dynamic Media" fields.
     documents: [{ url: String, publicId: String, name: String }],
     videoUrl: { type: String, default: "" },
+    // Uploaded video file (videoUrl points at it); empty for linked YouTube/Vimeo videos.
+    video: { url: { type: String, default: "" }, publicId: { type: String, default: "" } },
+    // Ordered 360° frames (8–36 photos taken around the piece).
+    spinImages: [{ _id: false, url: String, publicId: String }],
 
     tags: [{ type: String }],
     attributes: [{ key: String, value: String }],
@@ -85,6 +89,35 @@ const productSchema = new mongoose.Schema(
     colors: [{ type: String }],
     sizes: [{ type: String }],
     metal: { type: String, trim: true, default: "" }, // e.g. Brass, Copper, Alloy
+    stone: { type: String, trim: true, default: "" }, // e.g. Kundan, AD, Pearl
+    packaging: { type: String, trim: true, default: "" }, // e.g. "Box of 12 pairs"
+    occasions: [{ type: String, trim: true }], // e.g. Wedding, Festival, Office, Party, Daily
+    collections: [{ type: String, trim: true }], // admin-named collections, e.g. "Bridal 2026"
+    isTrending: { type: Boolean, default: false },
+    isNewArrival: { type: Boolean, default: false },
+    isTopSelling: { type: Boolean, default: false },
+    hsnCode: { type: String, trim: true, default: "" },
+    // Manufacturer's design / mould code (searchable, separate from SKU).
+    designCode: { type: String, trim: true, default: "" },
+    // Pieces per pack — wholesale quantities go in multiples of this (1 = loose).
+    packSize: { type: Number, min: 1, default: 1 },
+    // Price for verified dealer accounts (User.customerType "dealer"); 0 = none.
+    dealerPrice: { type: Number, min: 0, default: 0 },
+    // Bulk discount tiers: buy at least minQty → discountPercent off (utils/wholesalePricing.js).
+    bulkPricing: [
+      {
+        _id: false,
+        minQty: { type: Number, min: 1, required: true },
+        discountPercent: { type: Number, min: 0, max: 90, required: true },
+      },
+    ],
+    // Short bullet points shown above the description.
+    highlights: [{ type: String, trim: true }],
+    // Running automatic offer (services/offer.service.js) — shown as a badge.
+    offer: {
+      type: new mongoose.Schema({ id: { type: mongoose.Schema.Types.ObjectId, ref: "Offer" }, name: String, endsAt: Date }, { _id: false }),
+      default: null,
+    },
     plating: { type: String, trim: true, default: "" }, // e.g. Gold Plated, Rhodium
 
     // Phase 5 — set true once the product has ≥1 Variant document (see

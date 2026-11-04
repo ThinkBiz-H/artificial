@@ -28,7 +28,7 @@ export function Badge({ children, className, tone }: { children: React.ReactNode
       : undefined;
 
   return (
-    <span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium", toneClass || "bg-surface text-ink", className)}>
+    <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ring-1 ring-inset ring-black/5", toneClass || "bg-surface text-ink", className)}>
       {children}
     </span>
   );

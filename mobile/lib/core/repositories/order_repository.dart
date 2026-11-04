@@ -23,6 +23,7 @@ class OrderRepository {
     required String paymentMethod,
     String? couponCode,
     String? shippingNotes,
+    Map<String, String>? business,
   }) async {
     final res = await _api.post(ApiEndpoints.orders, data: {
       'shippingAddress': shippingAddress,
@@ -30,6 +31,7 @@ class OrderRepository {
       if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
       if (shippingNotes != null && shippingNotes.trim().isNotEmpty)
         'shippingNotes': shippingNotes.trim(),
+      if (business != null && business.isNotEmpty) 'business': business,
     });
     final order = OrderModel.fromJson(res.map('order') ?? const {});
     if (paymentMethod != 'razorpay') return PlacedOrder(order: order);
@@ -75,11 +77,13 @@ class OrderRepository {
     required Map<String, dynamic> shippingAddress,
     String? couponCode,
     String? shippingNotes,
+    Map<String, String>? business,
   }) async {
     final res = await _api.post(ApiEndpoints.paymentIntent, data: {
       'shippingAddress': shippingAddress,
       if (couponCode != null && couponCode.isNotEmpty) 'couponCode': couponCode,
       if (shippingNotes != null && shippingNotes.trim().isNotEmpty) 'shippingNotes': shippingNotes.trim(),
+      if (business != null && business.isNotEmpty) 'business': business,
     });
     final rzp = res.map('razorpayOrder');
     final keyId = stringFromJson(res.data['razorpayKeyId']);

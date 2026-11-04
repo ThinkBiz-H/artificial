@@ -25,3 +25,6 @@ dist-ssr
 
 # Firebase service account (secret — never commit)
 config/firebase-service-account.json
+
+# Locally stored media (Cloudinary fallback) — migrate with npm run media:migrate
+uploads/

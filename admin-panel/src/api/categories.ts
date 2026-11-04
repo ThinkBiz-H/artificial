@@ -11,15 +11,32 @@ export interface CategoryFormValues {
   showInHeader?: boolean;
   parent?: string | null;
   attributeTemplate?: AttributeTemplateField[];
+  seo?: { title?: string; description?: string; keywords?: string };
   image?: File;
+  icon?: File;
+  banner?: File;
+  /** Clear the saved icon / banner. */
+  remove_icon?: boolean;
+  remove_banner?: boolean;
 }
+
+/** Multipart body with the image, icon and banner files under their own fields. */
+const categoryForm = (values: Partial<CategoryFormValues>) => {
+  const { image, icon, banner, ...rest } = values;
+  const form = toFormData(rest);
+  if (image) form.append("image", image);
+  if (icon) form.append("icon", icon);
+  if (banner) form.append("banner", banner);
+  return form;
+};
 
 export const categoriesApi = {
   list: (params: Record<string, unknown> = {}) =>
-    apiClient.get<ApiEnvelope<{ categories: Category[]; count: number }>>("/categories", { params }).then((r) => r.data),
+    apiClient.get<ApiEnvelope<{ categories: Category[]; count: number }>>("/categories", { params: { all: "true", ...params } }).then((r) => r.data),
 
   tree: () =>
-    apiClient.get<ApiEnvelope<{ categories: Category[] }>>("/categories", { params: { tree: "true" } }).then((r) => r.data),
+    // all=true: the admin sees empty categories too (the storefront hides them).
+    apiClient.get<ApiEnvelope<{ categories: Category[] }>>("/categories", { params: { tree: "true", all: "true" } }).then((r) => r.data),
 
   bySlug: (slug: string) => apiClient.get<ApiEnvelope<{ category: Category }>>(`/categories/${slug}`).then((r) => r.data),
 
@@ -29,18 +46,14 @@ export const categoriesApi = {
       .then((r) => r.data),
 
   create: (values: CategoryFormValues) => {
-    const { image, ...rest } = values;
-    const form = toFormData(rest);
-    if (image) form.append("image", image);
+    const form = categoryForm(values);
     return apiClient
       .post<ApiEnvelope<{ category: Category }>>("/categories", form, { headers: { "Content-Type": "multipart/form-data" } })
       .then((r) => r.data);
   },
 
   update: (id: string, values: Partial<CategoryFormValues>) => {
-    const { image, ...rest } = values;
-    const form = toFormData(rest);
-    if (image) form.append("image", image);
+    const form = categoryForm(values);
     return apiClient
       .put<ApiEnvelope<{ category: Category }>>(`/categories/${id}`, form, { headers: { "Content-Type": "multipart/form-data" } })
       .then((r) => r.data);

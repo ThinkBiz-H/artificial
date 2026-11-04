@@ -44,6 +44,17 @@ async function openInvoice(orderId: string) {
   }
 }
 
+/** Fulfilment queues: new → packing → dispatch → in transit → delivered. */
+const QUEUES = [
+  { label: "All orders", status: "", hint: "Every order" },
+  { label: "New", status: "Pending", hint: "Awaiting confirmation" },
+  { label: "Packing", status: "Confirmed", hint: "Confirmed — pack these" },
+  { label: "Dispatch", status: "Packed", hint: "Packed — ready to ship" },
+  { label: "In transit", status: "Shipped", hint: "With the courier" },
+  { label: "Delivered", status: "Delivered", hint: "Completed" },
+  { label: "Cancelled", status: "Cancelled", hint: "Cancelled orders" },
+];
+
 export function OrdersListPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
@@ -132,6 +143,21 @@ export function OrdersListPage() {
           </div>
         }
       />
+
+      {/* Wholesale fulfilment queues */}
+      <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl border border-border bg-white p-1 print:hidden">
+        {QUEUES.map((qItem) => (
+          <button
+            key={qItem.label}
+            type="button"
+            onClick={() => filter(setStatus)(qItem.status)}
+            className={`flex flex-none flex-col items-start rounded-lg px-4 py-2 text-left transition-colors ${status === qItem.status ? "bg-brand text-white" : "hover:bg-surface"}`}
+          >
+            <span className="text-sm font-semibold">{qItem.label}</span>
+            <span className={`text-[11px] ${status === qItem.status ? "text-white/70" : "text-muted"}`}>{qItem.hint}</span>
+          </button>
+        ))}
+      </div>
 
       <Card>
         <div className="flex flex-wrap gap-2 border-b border-border p-4 print:hidden">
@@ -239,7 +265,10 @@ export function OrdersListPage() {
                           </div>
                         )}
                       </Td>
-                      <Td className="text-sm">{customer}</Td>
+                      <Td className="text-sm">
+                        {order.business?.name || customer}
+                        {order.business?.name && <span className="block text-xs text-muted">{customer}{order.business.gstin ? ` · ${order.business.gstin}` : ""}</span>}
+                      </Td>
                       <Td className="text-sm text-muted">{formatDate(order.createdAt)}</Td>
                       <Td>
                         <Badge>{order.paymentStatus}</Badge>

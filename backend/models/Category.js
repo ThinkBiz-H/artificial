@@ -9,6 +9,21 @@ const categorySchema = new mongoose.Schema(
       url: { type: String, default: "" },
       publicId: { type: String, default: "" },
     },
+    // Small round icon for category sliders and a wide banner for the
+    // category page header (both optional; `image` stays the main picture).
+    icon: {
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
+    },
+    banner: {
+      url: { type: String, default: "" },
+      publicId: { type: String, default: "" },
+    },
+    seo: {
+      title: { type: String, trim: true, default: "" },
+      description: { type: String, trim: true, default: "" },
+      keywords: { type: String, trim: true, default: "" },
+    },
     shortTitle: { type: String, trim: true, default: "" },
     description: { type: String, default: "" },
     status: { type: String, enum: ["active", "inactive"], default: "active" },

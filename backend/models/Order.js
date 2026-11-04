@@ -155,6 +155,13 @@ const orderSchema = new mongoose.Schema(
       pincode: String,
       mobile: String,
     },
+    // B2B buyer details captured at checkout (optional; older orders have none).
+    business: {
+      name: { type: String, trim: true, default: "" },
+      gstin: { type: String, trim: true, uppercase: true, default: "" },
+      email: { type: String, trim: true, default: "" },
+      phone: { type: String, trim: true, default: "" },
+    },
     coupon: {
       code: { type: String, default: null },
       discountAmount: { type: Number, default: 0 },

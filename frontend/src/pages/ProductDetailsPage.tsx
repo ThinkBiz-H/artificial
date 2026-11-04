@@ -47,6 +47,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/States";
 import { AccordionItem } from "@/components/ui/Accordion";
 import { ProductPrice } from "@/components/product/ProductCard";
+import { minQtyOf, packSizeOf } from "@/lib/wholesale";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductRail } from "@/components/product/ProductRail";
 import { ProductReviews } from "@/components/product/ProductReviews";
@@ -230,7 +231,7 @@ export function ProductDetailsPage() {
     // Server-side view tracking (feeds "Trending") is an authenticated endpoint.
     if (isAuthenticated) trackView.mutate(product._id);
     addRecent(product);
-    setQuantity(product.minOrderQuantity || 1);
+    setQuantity(minQtyOf(product));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?._id]);
 
@@ -376,6 +377,9 @@ export function ProductDetailsPage() {
   const missingChoice =
     !usesVariants && colorChoices.length > 1 && !color ? "colour" : !usesVariants && sizeChoices.length > 1 && !size ? "size" : null;
   const pricesIncludeTax = store.settings?.tax?.pricesIncludeTax ?? true;
+  // Wholesale quantity rules: start at the MOQ, step in whole packs.
+  const moq = minQtyOf(product);
+  const pack = packSizeOf(product);
 
   const handleAddToCart = () => {
     if (usesVariants && !matchedVariant)
@@ -537,6 +541,7 @@ export function ProductDetailsPage() {
             alt={product.title}
             badge={galleryBadge}
             videoUrl={product.videoUrl}
+            spinFrames={product.spinImages?.map((i) => i.url)}
           />
 
           {/* Sticky buy box */}
@@ -758,11 +763,9 @@ export function ProductDetailsPage() {
               <QuantityStepper
                 value={quantity}
                 onChange={setQuantity}
-                min={product.minOrderQuantity || 1}
-                max={Math.max(
-                  1,
-                  Math.min(product.maxOrderQuantity || 99, stock || 99),
-                )}
+                min={moq}
+                step={pack}
+                max={Math.max(moq, Math.min(product.maxOrderQuantity || 10000, stock || 10000))}
                 disabled={!canAddToCart}
               />
               <Button

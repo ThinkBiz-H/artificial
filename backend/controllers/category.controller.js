@@ -2,6 +2,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const { sendResponse } = require('../utils/ApiResponse');
 const Category = require('../models/Category');
+const Product = require('../models/Product');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../services/cloudinary.service');
 const {
   normalizeParentInput,
@@ -22,6 +23,29 @@ const parseAttributeTemplate = (raw) => {
   }
 };
 
+/** An uploaded file by form field (image / icon / banner). */
+const uploadedFile = (req, name) => req.files?.[name]?.[0] || (name === 'image' ? req.file : undefined);
+
+const uploadImage = async (file) => {
+  const result = await uploadToCloudinary(file.buffer, 'ecommerce/categories');
+  return { url: result.url, publicId: result.publicId };
+};
+
+/** SEO arrives as JSON (multipart) or an object; unknown keys are dropped. */
+const parseSeo = (raw) => {
+  if (raw === undefined) return undefined;
+  let seo = raw;
+  if (typeof raw === 'string') {
+    try {
+      seo = JSON.parse(raw);
+    } catch {
+      throw new ApiError(400, 'seo must be valid JSON: {title, description, keywords}');
+    }
+  }
+  const text = (v, max) => String(v ?? '').trim().slice(0, max);
+  return { title: text(seo?.title, 160), description: text(seo?.description, 320), keywords: text(seo?.keywords, 300) };
+};
+
 // @desc    Create category (root, or nested under `parent`)
 // @route   POST /api/v1/categories
 // @access  Private/Admin
@@ -32,11 +56,9 @@ const createCategory = asyncHandler(async (req, res) => {
 
   const parent = await resolveParent(parentId ?? null);
 
-  let image;
-  if (req.file) {
-    const result = await uploadToCloudinary(req.file.buffer, 'ecommerce/categories');
-    image = { url: result.url, publicId: result.publicId };
-  }
+  const [image, icon, banner] = await Promise.all(
+    ['image', 'icon', 'banner'].map((name) => (uploadedFile(req, name) ? uploadImage(uploadedFile(req, name)) : undefined)),
+  );
 
   const category = await Category.create({
     name,
@@ -44,6 +66,9 @@ const createCategory = asyncHandler(async (req, res) => {
     description,
     status,
     image,
+    icon,
+    banner,
+    seo: parseSeo(req.body.seo),
     sortOrder: sortOrder || 0,
     // Arrives as a string ("true"/"false") over multipart form-data.
     showInHeader: req.body.showInHeader === undefined ? undefined : req.body.showInHeader === 'true' || req.body.showInHeader === true,
@@ -64,13 +89,20 @@ const updateCategory = asyncHandler(async (req, res) => {
   const category = await Category.findById(req.params.id);
   if (!category) throw new ApiError(404, 'Category not found');
 
-  if (req.file) {
-    if (category.image && category.image.publicId) {
-      await deleteFromCloudinary(category.image.publicId);
+  for (const name of ['image', 'icon', 'banner']) {
+    const file = uploadedFile(req, name);
+    if (file) {
+      if (category[name]?.publicId) await deleteFromCloudinary(category[name].publicId);
+      category[name] = await uploadImage(file);
+    } else if (name !== 'image' && req.body[`remove_${name}`] === 'true' && category[name]?.url) {
+      // Icon / banner can be cleared from the admin form.
+      if (category[name].publicId) await deleteFromCloudinary(category[name].publicId);
+      category[name] = { url: '', publicId: '' };
     }
-    const result = await uploadToCloudinary(req.file.buffer, 'ecommerce/categories');
-    category.image = { url: result.url, publicId: result.publicId };
   }
+
+  const seo = parseSeo(req.body.seo);
+  if (seo) category.seo = seo;
 
   ['name', 'shortTitle', 'description', 'status', 'sortOrder'].forEach((field) => {
     if (req.body[field] !== undefined) category[field] = req.body[field];
@@ -109,9 +141,9 @@ const deleteCategory = asyncHandler(async (req, res) => {
 
   await assertDeletable(category._id);
 
-  if (category.image && category.image.publicId) {
-    await deleteFromCloudinary(category.image.publicId);
-  }
+  await Promise.all(
+    ['image', 'icon', 'banner'].map((name) => (category[name]?.publicId ? deleteFromCloudinary(category[name].publicId) : null)),
+  );
 
   await category.deleteOne();
   await invalidate('categories:*');
@@ -123,13 +155,37 @@ const deleteCategory = asyncHandler(async (req, res) => {
 //          of a given parent (?parent=<id>, or ?parent=root for top-level)
 // @route   GET /api/v1/categories
 // @access  Public
+/**
+ * Published-product count per category (direct products only).
+ * Used to hide empty categories from the storefront (admin passes all=true).
+ */
+const directProductCounts = async () => {
+  const rows = await Product.aggregate([
+    { $match: { isDeleted: false, status: 'active' } },
+    { $group: { _id: '$category', n: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((r) => [String(r._id), r.n]));
+};
+
+/** Adds productCount (self + descendants) to each node; optionally drops empty branches. */
+const withProductCounts = (nodes, counts, prune) =>
+  nodes
+    .map((node) => {
+      const children = withProductCounts(node.children || [], counts, prune);
+      const productCount = (counts.get(String(node._id)) || 0) + children.reduce((sum, c) => sum + c.productCount, 0);
+      return { ...node, children, productCount };
+    })
+    .filter((node) => !prune || node.productCount > 0);
+
 const getCategories = asyncHandler(async (req, res) => {
   const filter = {};
   if (req.query.status) filter.status = req.query.status;
+  // Storefront: only categories with published products. Admin: everything.
+  const showAll = req.query.all === 'true';
 
   if (req.query.tree === 'true') {
-    const tree = await Category.getTree(filter);
-    return sendResponse(res, 200, { categories: tree }, 'Category tree fetched successfully');
+    const [tree, counts] = await Promise.all([Category.getTree(filter), directProductCounts()]);
+    return sendResponse(res, 200, { categories: withProductCounts(tree, counts, !showAll) }, 'Category tree fetched successfully');
   }
 
   if (req.query.parent !== undefined) {

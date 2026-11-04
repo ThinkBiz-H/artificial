@@ -1,3 +1,4 @@
+import { MediaStorageCard } from "@/components/settings/MediaStorageCard";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
@@ -20,6 +21,7 @@ const TABS = [
   "General",
   "Store",
   "Currency & tax",
+  "Wholesale",
   "Payments",
   "Shipping",
   "WhatsApp",
@@ -30,6 +32,7 @@ const TABS = [
   "Feature flags",
   "App version",
   "Branding",
+  "Cloudinary",
   "Environment",
 ] as const;
 
@@ -73,6 +76,11 @@ interface FormShape {
   defaultShippingCharge: number;
   expressShippingCharge: number;
   codCharge: number;
+  wholesaleEnabled: boolean;
+  wholesaleMinOrderValue: number;
+  wholesaleFreeDelivery: boolean;
+  wholesaleAllowCod: boolean;
+  wholesaleCollectBusiness: boolean;
   whatsappBusinessNumber: string;
   whatsappEnableStartChat: boolean;
   whatsappTrackingBaseUrl: string;
@@ -92,14 +100,14 @@ interface FormShape {
   appIosUrl: string;
 }
 
-export function SettingsPage() {
+export function SettingsPage({ initialTab = "General" }: { initialTab?: (typeof TABS)[number] } = {}) {
   const { data: settings, isLoading } = useSettings();
   const updateSettings = useUpdateSettings();
   const updateLogo = useUpdateLogo();
   const updateFavicon = useUpdateFavicon();
   const { data: environment } = useEnvironmentStatus();
 
-  const [tab, setTab] = useState<(typeof TABS)[number]>("General");
+  const [tab, setTab] = useState<(typeof TABS)[number]>(initialTab);
   const {
     register,
     handleSubmit,
@@ -151,6 +159,11 @@ export function SettingsPage() {
         defaultShippingCharge: settings.shipping?.defaultShippingCharge ?? 60,
         expressShippingCharge: settings.shipping?.expressShippingCharge ?? 0,
         codCharge: settings.shipping?.codCharge ?? 0,
+        wholesaleEnabled: settings.wholesale?.enabled ?? true,
+        wholesaleMinOrderValue: settings.wholesale?.minOrderValue ?? 5000,
+        wholesaleFreeDelivery: settings.wholesale?.freeDelivery ?? true,
+        wholesaleAllowCod: settings.wholesale?.allowCod ?? false,
+        wholesaleCollectBusiness: settings.wholesale?.collectBusinessDetails ?? true,
         whatsappBusinessNumber: settings.whatsapp?.businessNumber || "",
         whatsappEnableStartChat: settings.whatsapp?.enableStartChat ?? true,
         whatsappTrackingBaseUrl: settings.whatsapp?.trackingBaseUrl || "",
@@ -232,6 +245,13 @@ export function SettingsPage() {
         defaultShippingCharge: values.defaultShippingCharge,
         expressShippingCharge: values.expressShippingCharge,
         codCharge: values.codCharge,
+      },
+      wholesale: {
+        enabled: values.wholesaleEnabled,
+        minOrderValue: values.wholesaleMinOrderValue,
+        freeDelivery: values.wholesaleFreeDelivery,
+        allowCod: values.wholesaleAllowCod,
+        collectBusinessDetails: values.wholesaleCollectBusiness,
       },
       whatsapp: {
         businessNumber: values.whatsappBusinessNumber,
@@ -499,6 +519,55 @@ export function SettingsPage() {
             </CardBody>
           </Card>
         )}
+        {tab === "Wholesale" && (
+          <Card>
+            <CardHeader
+              title="Wholesale (B2B)"
+              description="Rules for wholesale buyers. The website and app show these, and checkout enforces them on the server — an order below the minimum is rejected."
+            />
+            <CardBody className="space-y-5">
+              <label className="flex items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1" {...register("wholesaleEnabled")} />
+                <span>
+                  <span className="font-medium text-fg">Wholesale mode</span>
+                  <span className="block text-xs text-fg-muted">Turn off to run as a normal retail store (no minimum, regular shipping and payment settings).</span>
+                </span>
+              </label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Input
+                  label="Minimum order value (₹)"
+                  type="number"
+                  min={0}
+                  step="1"
+                  hint="Checkout unlocks once the bag reaches this amount. 0 = no minimum."
+                  {...register("wholesaleMinOrderValue", { valueAsNumber: true, min: 0 })}
+                  error={errors.wholesaleMinOrderValue ? "Minimum cannot be negative" : undefined}
+                />
+              </div>
+              <label className="flex items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1" {...register("wholesaleFreeDelivery")} />
+                <span>
+                  <span className="font-medium text-fg">Free delivery on every order</span>
+                  <span className="block text-xs text-fg-muted">Overrides the Shipping tab charges while wholesale mode is on.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1" {...register("wholesaleAllowCod")} />
+                <span>
+                  <span className="font-medium text-fg">Allow Cash on Delivery</span>
+                  <span className="block text-xs text-fg-muted">Off = online payment only. COD also needs to be enabled under Feature flags.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1" {...register("wholesaleCollectBusiness")} />
+                <span>
+                  <span className="font-medium text-fg">Ask for business details at checkout</span>
+                  <span className="block text-xs text-fg-muted">Business name, GSTIN (optional), email and phone — shown on the order.</span>
+                </span>
+              </label>
+            </CardBody>
+          </Card>
+        )}
         {tab === "Shipping" && (
           <Card>
             <CardHeader
@@ -659,6 +728,7 @@ export function SettingsPage() {
         </div>
       )}
 
+      {tab === "Cloudinary" && <MediaStorageCard />}
       {tab === "Environment" && (
         <Card>
           <CardHeader

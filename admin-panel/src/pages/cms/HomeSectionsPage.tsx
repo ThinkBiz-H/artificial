@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Plus, Pencil, Trash2, LayoutTemplate, X, Play, Images } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, LayoutTemplate, X, Play, Images, GripVertical } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { homeSectionsApi } from "@/api/cms";
+import { getErrorMessage } from "@/lib/utils";
 import { useHomeSections, useCreateHomeSection, useUpdateHomeSection, useDeleteHomeSection } from "@/hooks/useCms";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -85,6 +89,30 @@ export function HomeSectionsPage() {
   const createSection = useCreateHomeSection();
   const updateSection = useUpdateHomeSection();
   const deleteSection = useDeleteHomeSection();
+  const qc = useQueryClient();
+
+  // Drag & drop ordering — the homepage shows sections in this order.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [order, setOrder] = useState<string[] | null>(null);
+  const ordered = order && sections ? order.map((id) => sections.find((s) => s._id === id)).filter((s): s is HomeSection => !!s) : sections;
+  const dropOn = async (targetId: string) => {
+    if (!sections || !dragId || dragId === targetId) return;
+    const ids = (ordered ?? sections).map((s) => s._id);
+    const from = ids.indexOf(dragId);
+    const to = ids.indexOf(targetId);
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    setOrder(ids);
+    try {
+      await homeSectionsApi.reorder(ids);
+      await qc.invalidateQueries({ queryKey: ["admin-home-sections"] });
+      toast.success("Homepage order saved");
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setOrder(null);
+    }
+  };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<HomeSection | null>(null);
@@ -179,7 +207,8 @@ export function HomeSectionsPage() {
   return (
     <div>
       <PageHeader
-        title="Home page sections"
+        title="Homepage builder"
+        description="Drag sections to set the order buyers see on the website and app."
         action={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate({ to: "/cms/pages" })}><ArrowLeft size={14} /> Back</Button>
@@ -200,9 +229,31 @@ export function HomeSectionsPage() {
           <EmptyState icon={<LayoutTemplate size={18} />} title="No home sections yet" />
         ) : (
           <div className="divide-y divide-border">
-            {sections.map((s) => (
-              <div key={s._id} className="flex items-center justify-between gap-4 p-4">
+            {(ordered ?? sections).map((s) => (
+              <div
+                key={s._id}
+                draggable
+                onDragStart={() => setDragId(s._id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setOverId(s._id);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  dropOn(s._id);
+                  setDragId(null);
+                  setOverId(null);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setOverId(null);
+                }}
+                className={`flex items-center justify-between gap-4 p-4 transition-colors ${dragId === s._id ? "opacity-40" : ""} ${overId === s._id && dragId !== s._id ? "bg-info-bg" : ""}`}
+              >
                 <div className="flex items-center gap-3">
+                  <span className="cursor-grab text-muted-light active:cursor-grabbing" title="Drag to reorder" aria-hidden>
+                    <GripVertical size={16} />
+                  </span>
                   {s.image?.url && <div className="h-12 w-12 flex-none overflow-hidden rounded-lg border border-border"><img src={s.image.url} alt="" className="h-full w-full object-cover" /></div>}
                   {!s.image?.url && s.slides?.[0]?.desktopImage?.url && <div className="h-12 w-12 flex-none overflow-hidden rounded-lg border border-border"><img src={s.slides[0].desktopImage.url} alt="" className="h-full w-full object-cover" /></div>}
                   {!s.image?.url && !s.slides?.length && s.reels?.[0]?.thumbnail?.url && <div className="h-12 w-12 flex-none overflow-hidden rounded-lg border border-border"><img src={s.reels[0].thumbnail.url} alt="" className="h-full w-full object-cover" /></div>}

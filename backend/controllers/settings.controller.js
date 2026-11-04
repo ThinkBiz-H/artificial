@@ -8,6 +8,9 @@ const {
 } = require("../services/cloudinary.service");
 const { invalidate } = require("../services/cache.service");
 const { publicBrand } = require("../services/brand.service");
+const { getWholesaleRules } = require("../services/wholesale.service");
+const { migrateLocalMedia } = require("../services/mediaMigration.service");
+const { isCloudinaryConfigured } = require("../services/cloudinary.service");
 
 // @desc    Public-safe subset of settings, for the storefront (branding,
 //          currency, tax display, contact/social, maintenance banner).
@@ -37,6 +40,9 @@ const getPublicSettings = asyncHandler(async (req, res) => {
       freeShippingThreshold: s.shipping?.freeShippingThreshold ?? 0,
       defaultShippingCharge: s.shipping?.defaultShippingCharge ?? 0,
     },
+    // B2B rules the storefront shows (minimum order bar, free delivery);
+    // checkout enforces the same values server-side.
+    wholesale: await getWholesaleRules(s),
     seo: s.seo,
     social: s.social,
     contact: s.contact,
@@ -147,6 +153,26 @@ const getEnvironmentStatus = asyncHandler(async (req, res) => {
   );
 });
 
+// @desc    Media storage status: Cloudinary configured? local files waiting?
+// @route   GET /api/v1/admin/settings/media-storage
+// @access  Private/Admin
+const getMediaStorage = asyncHandler(async (req, res) => {
+  const stats = await migrateLocalMedia({ mode: "count" });
+  sendResponse(res, 200, { cloudinaryConfigured: isCloudinaryConfigured(), local: stats }, "Media storage status");
+});
+
+// @desc    Move locally stored media to Cloudinary (one click, safe to repeat)
+// @route   POST /api/v1/admin/settings/media-storage/migrate   body: { deleteLocal? }
+// @access  Private/Admin
+const migrateMediaStorage = asyncHandler(async (req, res) => {
+  try {
+    const stats = await migrateLocalMedia({ mode: "migrate", deleteLocal: req.body?.deleteLocal === true });
+    sendResponse(res, 200, { stats }, `Moved ${stats.files} file(s) to Cloudinary`);
+  } catch (err) {
+    throw new ApiError(err.statusCode || 502, err.message);
+  }
+});
+
 module.exports = {
   getPublicSettings,
   getAllSettings,
@@ -154,4 +180,6 @@ module.exports = {
   updateLogo,
   updateFavicon,
   getEnvironmentStatus,
+  getMediaStorage,
+  migrateMediaStorage,
 };

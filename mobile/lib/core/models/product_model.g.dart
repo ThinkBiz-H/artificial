@@ -133,6 +133,16 @@ _ProductModel _$ProductModelFromJson(
       : stringListFromJson(json['sizes']),
   metal: nullableStringFromJson(json['metal']),
   plating: nullableStringFromJson(json['plating']),
+  stone: nullableStringFromJson(json['stone']),
+  packaging: nullableStringFromJson(json['packaging']),
+  hsnCode: nullableStringFromJson(json['hsnCode']),
+  highlights: json['highlights'] == null
+      ? const <String>[]
+      : stringListFromJson(json['highlights']),
+  occasions: json['occasions'] == null
+      ? const <String>[]
+      : stringListFromJson(json['occasions']),
+  offerName: json['offer'] == null ? '' : offerNameFromJson(json['offer']),
   weight: nullableDoubleFromJson(json['weight']),
   hasVariants: json['hasVariants'] == null
       ? false
@@ -146,6 +156,10 @@ _ProductModel _$ProductModelFromJson(
   minOrderQuantity: json['minOrderQuantity'] == null
       ? 1
       : intFromJson(json['minOrderQuantity']),
+  packSize: json['packSize'] == null ? 1 : intFromJson(json['packSize']),
+  bulkPricing: json['bulkPricing'] == null
+      ? const <BulkTier>[]
+      : bulkTiersFromJson(json['bulkPricing']),
   maxOrderQuantity: nullableIntFromJson(json['maxOrderQuantity']),
   warranty: json['warranty'] == null ? '' : stringFromJson(json['warranty']),
   returnPolicy: json['returnPolicy'] == null
@@ -193,10 +207,16 @@ Map<String, dynamic> _$ProductModelToJson(_ProductModel instance) =>
       'sizes': instance.sizes,
       'metal': ?instance.metal,
       'plating': ?instance.plating,
+      'stone': ?instance.stone,
+      'packaging': ?instance.packaging,
+      'hsnCode': ?instance.hsnCode,
+      'highlights': instance.highlights,
+      'occasions': instance.occasions,
       'weight': ?instance.weight,
       'hasVariants': instance.hasVariants,
       'variants': instance.variants.map((e) => e.toJson()).toList(),
       'minOrderQuantity': instance.minOrderQuantity,
+      'packSize': instance.packSize,
       'maxOrderQuantity': ?instance.maxOrderQuantity,
       'warranty': instance.warranty,
       'returnPolicy': instance.returnPolicy,

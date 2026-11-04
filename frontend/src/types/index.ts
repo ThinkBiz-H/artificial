@@ -55,6 +55,11 @@ export interface Category {
   name: string;
   slug: string;
   image?: { url: string; publicId: string };
+  /** Round icon for category sliders (falls back to `image`). */
+  icon?: { url: string; publicId: string };
+  /** Wide banner for the category page header. */
+  banner?: { url: string; publicId: string };
+  seo?: { title?: string; description?: string; keywords?: string };
   shortTitle?: string;
   description?: string;
   status: "active" | "inactive";
@@ -193,12 +198,30 @@ export interface Product {
   sizes?: string[];
   metal?: string;
   plating?: string;
+  stone?: string;
+  packaging?: string;
+  occasions?: string[];
+  collections?: string[];
+  isTrending?: boolean;
+  isNewArrival?: boolean;
+  isTopSelling?: boolean;
+  /** Ordered 360° frames. */
+  spinImages?: { url: string; publicId?: string }[];
+  dealerPrice?: number;
+  bulkPricing?: { minQty: number; discountPercent: number }[];
+  packSize?: number;
+  designCode?: string;
+  hsnCode?: string;
+  highlights?: string[];
+  /** Running automatic offer (Admin > Offers). */
+  offer?: { id: string; name: string; endsAt?: string } | null;
   hasVariants: boolean;
   variants?: Variant[];
   relatedProducts?: Product[] | string[];
   crossSell?: Product[] | string[];
   upSell?: Product[] | string[];
   weight?: number;
+  dimensions?: { length?: number; width?: number; height?: number; unit?: "cm" | "in" };
   minOrderQuantity?: number;
   maxOrderQuantity?: number;
   warranty?: string;
@@ -543,6 +566,17 @@ export interface PublicSettings {
     freeShippingThreshold: number;
     defaultShippingCharge: number;
   };
+  /** B2B wholesale rules (Admin > Settings > Wholesale). */
+  wholesale?: WholesaleRules;
+  appVersion?: { latestVersion?: string; androidUrl?: string; iosUrl?: string };
+}
+
+export interface WholesaleRules {
+  enabled: boolean;
+  minOrderValue: number;
+  freeDelivery: boolean;
+  allowCod: boolean;
+  collectBusinessDetails: boolean;
 }
 
 // Session

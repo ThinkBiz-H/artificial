@@ -63,6 +63,19 @@ const homeSectionFields = upload.fields([
   { name: "gallery", maxCount: 12 },
 ]);
 
+// Category picture plus its optional slider icon and page banner.
+const categoryFields = upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "icon", maxCount: 1 },
+  { name: "banner", maxCount: 1 },
+]);
+
+// Product video file + 360° frame set.
+const productMediaFields = upload.fields([
+  { name: "video", maxCount: 1 },
+  { name: "spin", maxCount: 36 }, // request limit is 40 files
+]);
+
 const categoryBannerFields = upload.fields([
   { name: "desktopImage", maxCount: 1 },
   { name: "mobileImage", maxCount: 1 },
@@ -80,6 +93,8 @@ const reelFields = upload.fields([
 
 module.exports = upload;
 module.exports.homeSectionFields = homeSectionFields;
+module.exports.categoryFields = categoryFields;
+module.exports.productMediaFields = productMediaFields;
 module.exports.categoryBannerFields = categoryBannerFields;
 module.exports.heroSlideFields = heroSlideFields;
 module.exports.reelFields = reelFields;

@@ -11,9 +11,11 @@ const {
   getTopCustomers,
   getCategoryAnalytics,
   getMonthlyRevenue,
+  getLatestReviews,
 } = require('../controllers/dashboard.controller');
 
-const { getUsers, getUserById, updateUserStatus, updateUserPermissions, deleteUser } = require('../controllers/admin.controller');
+const { getUsers, getUserById, updateUserStatus, updateCustomerType, updateCustomerBusiness, adjustCustomerLedger, getCustomerLedger, updateUserPermissions, deleteUser } = require('../controllers/admin.controller');
+const catalogTerms = require('../controllers/catalogTerms.controller');
 const { getAuditLogs, getPermissionCatalog } = require('../controllers/auditLog.controller');
 const {
   getCustomerOverview,
@@ -102,6 +104,8 @@ const { blogValidator, blogUpdateValidator, blogCategoryValidator } = require('.
 const {
   getAllSettings,
   updateSettings,
+  getMediaStorage,
+  migrateMediaStorage,
   updateLogo,
   updateFavicon,
   getEnvironmentStatus,
@@ -167,6 +171,7 @@ router.get('/dashboard/charts', getSalesChart);
 router.get('/dashboard/top-customers', getTopCustomers);
 router.get('/dashboard/category-analytics', getCategoryAnalytics);
 router.get('/dashboard/monthly-revenue', getMonthlyRevenue);
+router.get('/dashboard/latest-reviews', getLatestReviews);
 
 // CSV/Excel reports (?format=csv|excel, default csv)
 router.get('/reports/sales', requirePermission('view_reports'), getSalesReportCSV);
@@ -206,6 +211,15 @@ router.get('/notifications/stats', requirePermission('Notifications', 'View'), n
 router.get('/users', getUsers);
 router.get('/users/:id', getUserById);
 router.patch('/users/:id/status', updateUserStatus);
+router.patch('/users/:id/customer-type', updateCustomerType);
+// Collections / tags / occasions (Admin > Catalog > Collections & tags).
+router.get('/catalog-terms/:kind', requirePermission('Products', 'View'), catalogTerms.listTerms);
+router.patch('/catalog-terms/:kind', requirePermission('Products', 'Edit'), catalogTerms.renameTerm);
+router.post('/catalog-terms/:kind/assign', requirePermission('Products', 'Edit'), catalogTerms.assignTerm);
+router.delete('/catalog-terms/:kind/:name', requirePermission('Products', 'Edit'), catalogTerms.deleteTerm);
+router.patch('/users/:id/business', updateCustomerBusiness);
+router.get('/users/:id/ledger', getCustomerLedger);
+router.post('/users/:id/ledger', adjustCustomerLedger);
 router.patch('/users/:id/permissions', requirePermission('manage_users'), updateUserPermissions);
 router.delete('/users/:id', deleteUser);
 
@@ -293,6 +307,8 @@ router.delete('/brand/assets/:slot', canEditBrand, brandCtl.removeAsset);
 router.get('/brand/assets/:slot/versions', canViewBrand, brandCtl.listVersions);
 router.post('/brand/assets/:slot/versions/:versionId/restore', canEditBrand, brandCtl.restoreVersion);
 router.get('/settings/environment-status', requirePermission('manage_settings'), getEnvironmentStatus);
+router.get('/settings/media-storage', requirePermission('manage_settings'), getMediaStorage);
+router.post('/settings/media-storage/migrate', requirePermission('manage_settings'), migrateMediaStorage);
 
 // Media Manager (Phase 12)
 router.get('/media/folders', getFolders);

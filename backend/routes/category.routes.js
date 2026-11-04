@@ -52,8 +52,8 @@ router.get('/', cacheMiddleware('categories', 600), getCategories);
 router.get('/:id/attribute-template', getAttributeTemplate);
 router.get('/:slug', getCategoryBySlug);
 
-router.post('/', protect, authorize('admin'), requirePermission('Categories', 'Create'), upload.single('image'), categoryValidator, validate, createCategory);
-router.put('/:id', protect, authorize('admin'), requirePermission('Categories', 'Edit'), upload.single('image'), categoryUpdateValidator, validate, updateCategory);
+router.post('/', protect, authorize('admin'), requirePermission('Categories', 'Create'), upload.categoryFields, categoryValidator, validate, createCategory);
+router.put('/:id', protect, authorize('admin'), requirePermission('Categories', 'Edit'), upload.categoryFields, categoryUpdateValidator, validate, updateCategory);
 router.delete('/:id', protect, authorize('admin'), requirePermission('Categories', 'Delete'), deleteCategory);
 
 module.exports = router;

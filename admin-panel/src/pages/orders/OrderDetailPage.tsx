@@ -293,6 +293,28 @@ export function OrderDetailPage() {
             </CardBody>
           </Card>
 
+          {(order.business?.name || order.business?.gstin || order.business?.email || order.business?.phone || order.shippingNotes) && (
+            <Card>
+              <CardHeader title="Business details" />
+              <CardBody className="space-y-1.5 text-sm">
+                {order.business?.name && <p className="font-medium text-ink">{order.business.name}</p>}
+                {order.business?.gstin && (
+                  <p className="text-muted">
+                    GSTIN <span className="font-mono text-ink">{order.business.gstin}</span>
+                  </p>
+                )}
+                {order.business?.email && <p className="text-muted">{order.business.email}</p>}
+                {order.business?.phone && <p className="text-muted">{order.business.phone}</p>}
+                {order.shippingNotes && (
+                  <p className="whitespace-pre-line border-t border-border pt-2 text-muted">
+                    <span className="font-medium text-ink">Notes: </span>
+                    {order.shippingNotes}
+                  </p>
+                )}
+              </CardBody>
+            </Card>
+          )}
+
           <Card>
             <CardHeader title="Payment summary" />
             <CardBody className="space-y-1.5 text-sm">

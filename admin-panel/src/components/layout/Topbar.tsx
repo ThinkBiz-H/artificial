@@ -15,7 +15,7 @@ export function Topbar() {
   const { unreadCount } = useNotifications();
 
   return (
-    <header className="print:hidden sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-white px-4 sm:px-6">
+    <header className="print:hidden sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-white/85 px-4 backdrop-blur-md sm:px-6 lg:px-8">
       <div className="flex min-w-0 flex-1 items-center gap-3 pr-3">
         <button className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
           <Menu size={20} />

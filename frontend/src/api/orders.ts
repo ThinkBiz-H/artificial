@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
 import type { ApiEnvelope, Order, RazorpayOrder } from "@/types";
+import type { BusinessDetails } from "./checkout";
 
 export interface ShippingAddressInput {
   fullName: string;
@@ -18,6 +19,7 @@ export interface CreateOrderPayload {
   paymentMethod: "cod" | "razorpay";
   couponCode?: string;
   shippingNotes?: string;
+  business?: BusinessDetails;
 }
 
 export const ordersApi = {

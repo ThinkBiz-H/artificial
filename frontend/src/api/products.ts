@@ -12,7 +12,28 @@ export interface ProductListParams {
   [key: string]: unknown;
 }
 
+/** Filter values (with counts) available in a listing. */
+export interface FacetValue {
+  value: string;
+  count: number;
+}
+export interface ProductFacets {
+  metal: FacetValue[];
+  plating: FacetValue[];
+  stone: FacetValue[];
+  occasions: FacetValue[];
+  collections: FacetValue[];
+  colors: FacetValue[];
+  sizes: FacetValue[];
+  price: { min: number; max: number };
+  total: number;
+}
+
 export const productsApi = {
+  // GET /api/v1/products/facets/list?category=
+  facets: (category?: string) =>
+    apiClient.get<ApiEnvelope<{ facets: ProductFacets }>>("/products/facets/list", { params: { category } }).then((r) => r.data),
+
   list: (params: ProductListParams = {}) =>
     apiClient
       .get<ApiEnvelope<{ products: Product[]; pagination: Pagination }>>("/products", { params })

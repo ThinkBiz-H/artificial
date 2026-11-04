@@ -28,6 +28,16 @@ export function useProductList(
  * Same /products listing, fetched page by page for infinite scroll. `params`
  * must not include `page` — pages are driven by the query itself.
  */
+/** Filter values for a listing (materials, plating, occasions…). */
+export function useProductFacets(category?: string) {
+  return useQuery({
+    queryKey: ["products", "facets", category ?? "all"],
+    queryFn: () => productsApi.facets(category),
+    select: (res) => res.data.facets,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useInfiniteProductList(params: Omit<ProductListParams, "page">, options?: { enabled?: boolean }) {
   return useInfiniteQuery({
     queryKey: ["products", "infinite", params],

@@ -13,12 +13,24 @@ import { EmptyState } from "@/components/ui/States";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { formatDate } from "@/lib/utils";
 
+/** Business account segments. */
+const TABS = [
+  { id: "all", label: "All buyers", filter: {} },
+  { id: "retailer", label: "Retailers", filter: { customerType: "retailer" } },
+  { id: "wholesale", label: "Wholesale", filter: { customerType: "wholesale" } },
+  { id: "dealer", label: "Dealers", filter: { customerType: "dealer" } },
+  { id: "distributor", label: "Distributors", filter: { customerType: "distributor" } },
+  { id: "pending", label: "Pending verification", filter: { verification: "pending" } },
+] as const;
+
 export function CustomersListPage() {
   const [page, setPage] = useState(1);
   const [keyword, setKeyword] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("all");
+  const tabFilter = TABS.find((t) => t.id === tab)!.filter;
 
-  const { data, isLoading } = useCustomerList({ page, limit: 15, keyword: keyword || undefined });
+  const { data, isLoading } = useCustomerList({ page, limit: 15, keyword: keyword || undefined, sort: "-createdAt", ...tabFilter });
   const updateStatus = useUpdateCustomerStatus();
   const deleteCustomer = useDeleteCustomer();
 
@@ -27,6 +39,21 @@ export function CustomersListPage() {
       <PageHeader title="Customers" description={data ? `${data.pagination.total} customers` : undefined} />
 
       <Card>
+        <div className="flex gap-1 overflow-x-auto border-b border-border px-4 pt-3">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setTab(t.id);
+                setPage(1);
+              }}
+              className={`flex-none border-b-2 px-3 pb-2.5 text-sm font-medium ${tab === t.id ? "border-brand text-brand" : "border-transparent text-muted hover:text-ink"}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <div className="border-b border-border p-4">
           <SearchInput value={keyword} onChange={(v) => { setKeyword(v); setPage(1); }} placeholder="Search by name or email…" />
         </div>
@@ -42,6 +69,7 @@ export function CustomersListPage() {
                 <tr>
                   <Th>Customer</Th>
                   <Th>Mobile</Th>
+                  <Th>Account</Th>
                   <Th>Joined</Th>
                   <Th>Status</Th>
                   <Th className="text-right">Actions</Th>
@@ -57,6 +85,11 @@ export function CustomersListPage() {
                       </Link>
                     </Td>
                     <Td className="text-sm text-muted">{u.mobile || "—"}</Td>
+                    <Td>
+                      <Badge tone={u.customerType === "dealer" || u.customerType === "distributor" ? "info" : u.customerType === "retailer" || u.customerType === "retail" ? "neutral" : "success"}>{u.customerType ?? "wholesale"}</Badge>
+                      {u.businessProfile?.name && <p className="mt-1 max-w-[180px] truncate text-xs text-muted">{u.businessProfile.name}</p>}
+                      {u.businessVerification?.status === "verified" && <p className="text-[11px] font-medium text-success">✓ Verified business</p>}
+                    </Td>
                     <Td className="text-sm text-muted">{formatDate(u.createdAt)}</Td>
                     <Td><Badge tone={u.isActive ? "success" : "danger"}>{u.isActive ? "Active" : "Blocked"}</Badge></Td>
                     <Td>

@@ -15,6 +15,7 @@ import '../../../core/utils/extensions.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_bottom_nav.dart';
 import '../../../shared/widgets/line_options.dart';
+import '../../../shared/widgets/minimum_order_progress.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/dialogs.dart';
 import '../../../shared/widgets/price_tag.dart';
@@ -50,6 +51,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     ref.listen(cartProvider.select((c) => c.valueOrNull?.subTotal), (prev, next) {
       if (prev != next && _coupon != null) setState(() => _coupon = null);
     });
+    final minimum = minimumOrderStatus(ref, cart?.subTotal ?? 0);
     return Scaffold(
       appBar: AppBar(
         leading: const HomeBackButton(),
@@ -134,7 +136,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     SizedBox(
                       width: 200,
                       child: ElevatedButton(
-                        onPressed: () => context.push(RoutePaths.checkout, extra: _coupon?.code),
+                        // Checkout unlocks at the wholesale minimum (server enforces it too).
+                        onPressed: minimum.met ? () => context.push(RoutePaths.checkout, extra: _coupon?.code) : null,
                         child: const Text('PROCEED TO CHECKOUT'),
                       ),
                     ),
@@ -289,6 +292,8 @@ class _CartLineState extends ConsumerState<_CartLine> {
                               compact: true,
                               busy: _busy,
                               value: item.quantity,
+                              min: item.product.minQty,
+                              step: item.product.pack,
                               max: stock < item.product.maxQuantity ? stock : item.product.maxQuantity,
                               onChanged: (v) =>
                                   _run(() => ref.read(cartProvider.notifier).updateQuantity(item, v)),
@@ -400,7 +405,10 @@ class _SummaryState extends ConsumerState<_Summary> {
         children: [
           Text('Order Summary', style: context.text.headlineMedium),
           const SizedBox(height: AppSpacing.md),
-          _FreeShippingProgress(subTotal: cart.subTotal),
+          if (ref.watch(settingsValueProvider).effectiveMinOrder > 0)
+            MinimumOrderProgress(subTotal: cart.subTotal)
+          else
+            _FreeShippingProgress(subTotal: cart.subTotal),
           if (!authenticated)
             Text.rich(
               TextSpan(

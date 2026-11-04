@@ -62,8 +62,38 @@ const sanitizeColorOptions = (raw) => {
 /** Trims free-text jewellery fields; empty strings clear them. */
 const normalizeJewelleryFields = (body) => {
   if (body.colorOptions !== undefined) body.colorOptions = sanitizeColorOptions(body.colorOptions) ?? [];
-  ["metal", "plating"].forEach((k) => {
+  ["metal", "plating", "stone", "packaging", "hsnCode", "designCode"].forEach((k) => {
     if (body[k] !== undefined) body[k] = String(body[k] ?? "").trim();
+  });
+  // Bulk discount tiers: [{ minQty, discountPercent }] (JSON over multipart).
+  if (body.bulkPricing !== undefined) {
+    let tiers = body.bulkPricing;
+    if (typeof tiers === "string") {
+      try {
+        tiers = JSON.parse(tiers);
+      } catch {
+        tiers = [];
+      }
+    }
+    const seen = new Set();
+    body.bulkPricing = (Array.isArray(tiers) ? tiers : [])
+      .map((t) => ({ minQty: Math.floor(Number(t?.minQty)), discountPercent: Number(t?.discountPercent) }))
+      .filter((t) => t.minQty >= 1 && t.discountPercent > 0 && t.discountPercent <= 90 && !seen.has(t.minQty) && seen.add(t.minQty))
+      .sort((x, y) => x.minQty - y.minQty)
+      .slice(0, 10);
+  }
+  // Occasions / collections: JSON array or comma-separated text (multipart).
+  ["occasions", "collections", "highlights"].forEach((k) => {
+    if (body[k] === undefined) return;
+    let list = body[k];
+    if (typeof list === "string") {
+      try {
+        list = JSON.parse(list);
+      } catch {
+        list = list.split(",");
+      }
+    }
+    body[k] = [...new Set((Array.isArray(list) ? list : []).map((x) => String(x).trim()).filter(Boolean))].slice(0, 30);
   });
   if (Array.isArray(body.sizes)) {
     body.sizes = [...new Set(body.sizes.map((x) => String(x).trim()).filter(Boolean))];
@@ -151,7 +181,10 @@ const createProduct = asyncHandler(async (req, res) => {
   // anything is written; the product, its stock row and the opening-stock
   // movement are then saved together, so a failure can never leave a
   // product without inventory.
-  const defaultWarehouse = await inventoryService.getDefaultWarehouse();
+  // Opening stock goes to the warehouse picked in the form, else the default one.
+  const warehouseId = mongoose.Types.ObjectId.isValid(body.warehouse) ? body.warehouse : null;
+  delete body.warehouse;
+  const defaultWarehouse = await inventoryService.resolveWarehouse(warehouseId);
   let product;
   const session = await mongoose.startSession();
   try {
@@ -255,6 +288,28 @@ const updateProduct = asyncHandler(async (req, res) => {
     if (!product.thumbnail || !product.thumbnail.url)
       product.thumbnail = newImages[0];
   }
+
+  // Admin drag-to-reorder: `imageOrder` lists image URLs in display order
+  // (unknown URLs ignored, missing ones kept at the end); `thumbnailUrl`
+  // picks the cover image.
+  let imageOrder = body.imageOrder;
+  if (typeof imageOrder === "string") {
+    try {
+      imageOrder = JSON.parse(imageOrder);
+    } catch {
+      imageOrder = undefined;
+    }
+  }
+  if (Array.isArray(imageOrder)) {
+    const rank = new Map(imageOrder.map((url, i) => [String(url), i]));
+    product.images = [...product.images].sort((a, b) => (rank.get(a.url) ?? 1e6) - (rank.get(b.url) ?? 1e6));
+  }
+  if (typeof body.thumbnailUrl === "string") {
+    const cover = product.images.find((img) => img.url === body.thumbnailUrl);
+    if (cover) product.thumbnail = { url: cover.url, publicId: cover.publicId };
+  }
+  delete body.imageOrder;
+  delete body.thumbnailUrl;
 
   normalizeJewelleryFields(body);
 
@@ -362,7 +417,8 @@ const removeProductImage = asyncHandler(async (req, res) => {
   if (!product) throw new ApiError(404, "Product not found");
 
   const publicId = decodeURIComponent(req.params.publicId);
-  await deleteFromCloudinary(publicId);
+  const sharedWithAnother = await Product.exists({ _id: { $ne: product._id }, isDeleted: false, "images.publicId": publicId });
+  if (!sharedWithAnother) await deleteFromCloudinary(publicId);
 
   product.images = product.images.filter((img) => img.publicId !== publicId);
   // Drop the photo from any colour gallery that referenced it.
@@ -451,6 +507,113 @@ const deleteProduct = asyncHandler(async (req, res) => {
   sendResponse(res, 200, {}, "Product deleted successfully");
 });
 
+// @desc    Upload a product video and/or a 360° frame set (replaces the previous one)
+// @route   POST /api/v1/products/:id/media   multipart: video (1), spin (8–36, in order)
+// @access  Private/Admin
+const uploadProductMedia = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ _id: req.params.id, isDeleted: false });
+  if (!product) throw new ApiError(404, "Product not found");
+  const video = req.files?.video?.[0];
+  const spin = req.files?.spin || [];
+  if (!video && !spin.length) throw new ApiError(400, "Choose a video or 360° photos to upload");
+  if (spin.length && spin.length < 8) throw new ApiError(400, "A 360° view needs at least 8 photos taken around the piece");
+  if (video && !video.mimetype.startsWith("video/")) throw new ApiError(400, "The video must be an MP4, WebM or MOV file");
+  if (spin.some((f) => !f.mimetype.startsWith("image/"))) throw new ApiError(400, "360° frames must be images");
+
+  if (video) {
+    const up = await uploadToCloudinary(video.buffer, "ecommerce/products/videos", { resourceType: "video" });
+    if (product.video?.publicId) await deleteFromCloudinary(product.video.publicId, "video");
+    product.video = { url: up.url, publicId: up.publicId };
+    product.videoUrl = up.url;
+  }
+  if (spin.length) {
+    // Frames keep the order they were picked in (sorted by file name, e.g. 01.jpg…36.jpg).
+    const ordered = [...spin].sort((a, b) => a.originalname.localeCompare(b.originalname, undefined, { numeric: true }));
+    const uploaded = [];
+    for (const f of ordered) uploaded.push(await uploadToCloudinary(f.buffer, "ecommerce/products/360"));
+    await Promise.all((product.spinImages || []).map((img) => (img.publicId ? deleteFromCloudinary(img.publicId) : null)));
+    product.spinImages = uploaded.map((u) => ({ url: u.url, publicId: u.publicId }));
+  }
+  await product.save();
+  sendResponse(res, 200, { product }, "Media uploaded");
+});
+
+// @desc    Remove the uploaded video or the 360° frames
+// @route   DELETE /api/v1/products/:id/media/:kind   (kind: video | spin)
+// @access  Private/Admin
+const removeProductMedia = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ _id: req.params.id, isDeleted: false });
+  if (!product) throw new ApiError(404, "Product not found");
+  if (req.params.kind === "video") {
+    if (product.video?.publicId) await deleteFromCloudinary(product.video.publicId, "video");
+    if (product.videoUrl === product.video?.url) product.videoUrl = "";
+    product.video = { url: "", publicId: "" };
+  } else if (req.params.kind === "spin") {
+    await Promise.all((product.spinImages || []).map((img) => (img.publicId ? deleteFromCloudinary(img.publicId) : null)));
+    product.spinImages = [];
+  } else throw new ApiError(400, "kind must be video or spin");
+  await product.save();
+  sendResponse(res, 200, { product }, "Media removed");
+});
+
+// Fields an admin may change for many products at once.
+const BULK_FIELDS = { status: ["active", "inactive", "draft"], featured: "bool", isTrending: "bool", isTopSelling: "bool", isNewArrival: "bool" };
+
+// @desc    Bulk edit — status and merchandising flags for many products
+// @route   PATCH /api/v1/products/bulk   body: { ids: [], set: { status?, featured?, ... } }
+// @access  Private/Admin
+const bulkUpdateProducts = asyncHandler(async (req, res) => {
+  const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).filter((id) => mongoose.Types.ObjectId.isValid(id)).slice(0, 500);
+  if (!ids.length) throw new ApiError(400, "Select at least one product");
+  const set = {};
+  for (const [key, rule] of Object.entries(BULK_FIELDS)) {
+    const value = req.body?.set?.[key];
+    if (value === undefined) continue;
+    if (rule === "bool") set[key] = value === true || value === "true";
+    else if (rule.includes(value)) set[key] = value;
+    else throw new ApiError(400, `Invalid value for ${key}`);
+  }
+  if (!Object.keys(set).length) throw new ApiError(400, "Nothing to change");
+  const result = await Product.updateMany({ _id: { $in: ids }, isDeleted: false }, { $set: set });
+  sendResponse(res, 200, { matched: result.matchedCount, modified: result.modifiedCount }, `${result.modifiedCount} product(s) updated`);
+});
+
+// @desc    Duplicate a product as a draft (same images, new SKU, zero stock)
+// @route   POST /api/v1/products/:id/duplicate
+// @access  Private/Admin
+const duplicateProduct = asyncHandler(async (req, res) => {
+  const source = await Product.findOne({ _id: req.params.id, isDeleted: false }).lean();
+  if (!source) throw new ApiError(404, "Product not found");
+  const {
+    _id, slug, SKU, barcode, reviews, rating, numReviews, salesCount, viewCount, createdAt, updatedAt, __v, offer, deletedAt, stock, hasVariants, ...rest
+  } = source;
+  let sku;
+  if (SKU) {
+    for (let n = 1; n < 50 && !sku; n++) {
+      const candidate = `${SKU}-COPY${n > 1 ? n : ""}`;
+      if (!(await Product.exists({ SKU: candidate }))) sku = candidate;
+    }
+  }
+  const defaultWarehouse = await inventoryService.getDefaultWarehouse();
+  let copy;
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      [copy] = await Product.create(
+        [{ ...rest, title: `${source.title} (copy)`, SKU: sku, status: "draft", stock: 0, hasVariants: false, featured: false }],
+        { session },
+      );
+      await WarehouseStock.create(
+        [{ product: copy._id, variant: null, warehouse: defaultWarehouse._id, available: 0, reserved: 0, damaged: 0, incoming: 0 }],
+        { session },
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+  sendResponse(res, 201, { product: copy }, "Product duplicated as a draft");
+});
+
 // @desc    Restore a soft-deleted product
 // @route   PATCH /api/v1/products/:id/restore
 // @access  Private/Admin
@@ -489,6 +652,21 @@ const getProducts = asyncHandler(async (req, res) => {
     req.query.category = { $in: ids };
   }
 
+  // Wholesale filters: comma lists select any of several values
+  // (?metal=Brass,Copper), and ?inStock=true hides sold-out designs.
+  ["metal", "plating", "stone", "occasions", "collections", "colors", "sizes"].forEach((key) => {
+    const raw = req.query[key];
+    if (typeof raw === "string" && raw.includes(",")) {
+      const values = raw.split(",").map((v) => v.trim()).filter(Boolean).slice(0, 20);
+      req.query[key] = values.length ? { $in: values } : undefined;
+    }
+  });
+  if (req.query.inStock !== undefined) {
+    const onlyInStock = req.query.inStock === "true";
+    delete req.query.inStock;
+    if (onlyInStock) req.query.stock = { gt: "0" };
+  }
+
   // Category listings (parent or child) default to "Final Selling Price
   // ascending, newest first on a tie" instead of the generic `-createdAt`
   // default — but only when the caller hasn't explicitly asked for a
@@ -503,7 +681,7 @@ const getProducts = asyncHandler(async (req, res) => {
       Product.find({ isDeleted: false }),
       req.query,
     )
-      .search(["title", "description", "tags"])
+      .search(["title", "description", "tags", "SKU", "barcode", "designCode"])
       .filter();
     const mongoFilter = filterFeatures.query.getFilter();
     // aggregate() doesn't cast like find() does (e.g. "?price[gte]=100"
@@ -570,7 +748,7 @@ const getProducts = asyncHandler(async (req, res) => {
     .populate("unit", "name symbol allowDecimal");
 
   const features = new ApiFeatures(baseQuery, req.query)
-    .search(["title", "description", "tags"])
+    .search(["title", "description", "tags", "SKU", "barcode", "designCode"])
     .filter()
     .sort()
     .limitFields();
@@ -579,7 +757,7 @@ const getProducts = asyncHandler(async (req, res) => {
     Product.find({ isDeleted: false }),
     req.query,
   )
-    .search(["title", "description", "tags"])
+    .search(["title", "description", "tags", "SKU", "barcode", "designCode"])
     .filter();
   const total = await totalCountFeatures.query.countDocuments();
 
@@ -702,11 +880,98 @@ const getFeaturedProducts = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/products/new-arrivals/list
 // @access  Public
 const getNewArrivals = asyncHandler(async (req, res) => {
-  const products = await Product.find({ isDeleted: false, status: "active" })
-    .sort("-createdAt")
-    .limit(12)
-    .populate("category", "name slug");
+  // Products the admin marked "New Arrival" first, then the newest.
+  const products = await flaggedFirst({ isNewArrival: true }, "-createdAt", {}, 12);
   sendResponse(res, 200, { products }, "New arrivals fetched successfully");
+});
+
+/**
+ * Up to `limit` active products matching `flag` (newest first), topped up
+ * with products matching `fallbackFilter` in `fallbackSort` order.
+ */
+const flaggedFirst = async (flag, fallbackSort, fallbackFilter, limit) => {
+  const base = { isDeleted: false, status: "active" };
+  const flagged = await Product.find({ ...base, ...flag }).sort("-createdAt").limit(limit).populate("category", "name slug");
+  if (flagged.length >= limit) return flagged;
+  const rest = await Product.find({ ...base, ...fallbackFilter, _id: { $nin: flagged.map((p) => p._id) } })
+    .sort(fallbackSort)
+    .limit(limit - flagged.length)
+    .populate("category", "name slug");
+  return [...flagged, ...rest];
+};
+
+// @desc    Filter values for a listing — materials, plating, stones,
+//          occasions, collections, colours, sizes (with counts) and the
+//          price range, from the active products in scope.
+// @route   GET /api/v1/products/facets/list?category=
+// @access  Public
+const getProductFacets = asyncHandler(async (req, res) => {
+  const match = { isDeleted: false, status: "active" };
+  if (req.query.category) {
+    if (!mongoose.Types.ObjectId.isValid(req.query.category)) throw new ApiError(400, "Invalid category id");
+    match.category = { $in: await Category.getSelfAndDescendantIds(new mongoose.Types.ObjectId(String(req.query.category))) };
+  }
+
+  // Counts per value of a scalar or array field, most common first.
+  const facet = (field, isArray = false) => [
+    ...(isArray ? [{ $unwind: `$${field}` }] : []),
+    { $match: { [field]: { $nin: ["", null] } } },
+    { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+    { $sort: { count: -1, _id: 1 } },
+    { $limit: 40 },
+  ];
+
+  const [result] = await Product.aggregate([
+    { $match: match },
+    {
+      $facet: {
+        metal: facet("metal"),
+        plating: facet("plating"),
+        stone: facet("stone"),
+        occasions: facet("occasions", true),
+        collections: facet("collections", true),
+        colors: [
+          { $project: { names: { $setUnion: [{ $ifNull: ["$colors", []] }, { $ifNull: ["$colorOptions.name", []] }] } } },
+          { $unwind: "$names" },
+          { $match: { names: { $nin: ["", null] } } },
+          { $group: { _id: "$names", count: { $sum: 1 } } },
+          { $sort: { count: -1, _id: 1 } },
+          { $limit: 40 },
+        ],
+        sizes: facet("sizes", true),
+        price: [
+          {
+            $group: {
+              _id: null,
+              min: { $min: { $cond: [{ $gt: [{ $ifNull: ["$salePrice", 0] }, 0] }, "$salePrice", "$price"] } },
+              max: { $max: "$price" },
+            },
+          },
+        ],
+        total: [{ $count: "n" }],
+      },
+    },
+  ]);
+
+  const list = (rows) => (rows || []).map((r) => ({ value: String(r._id), count: r.count }));
+  sendResponse(
+    res,
+    200,
+    {
+      facets: {
+        metal: list(result?.metal),
+        plating: list(result?.plating),
+        stone: list(result?.stone),
+        occasions: list(result?.occasions),
+        collections: list(result?.collections),
+        colors: list(result?.colors),
+        sizes: list(result?.sizes),
+        price: { min: result?.price?.[0]?.min ?? 0, max: result?.price?.[0]?.max ?? 0 },
+        total: result?.total?.[0]?.n ?? 0,
+      },
+    },
+    "Product facets fetched successfully",
+  );
 });
 
 // @desc    Get related products - same category by default, optionally also
@@ -792,15 +1057,8 @@ const getRecentlyViewed = asyncHandler(async (req, res) => {
 const getTrendingProducts = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50);
 
-  const products = await Product.find({
-    isDeleted: false,
-    status: "active",
-    viewCount: { $gt: 0 },
-  })
-    .sort("-viewCount")
-    .limit(limit)
-    .populate("category", "name slug")
-    .lean();
+  // Products the admin marked "Trending" first, then the most viewed.
+  const products = await flaggedFirst({ isTrending: true }, "-viewCount", { viewCount: { $gt: 0 } }, limit);
 
   sendResponse(
     res,
@@ -816,15 +1074,8 @@ const getTrendingProducts = asyncHandler(async (req, res) => {
 const getBestSellers = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50);
 
-  const products = await Product.find({
-    isDeleted: false,
-    status: "active",
-    salesCount: { $gt: 0 },
-  })
-    .sort("-salesCount")
-    .limit(limit)
-    .populate("category", "name slug")
-    .lean();
+  // Products the admin marked "Top Selling" first, then real sales.
+  const products = await flaggedFirst({ isTopSelling: true }, "-salesCount", { salesCount: { $gt: 0 } }, limit);
 
   sendResponse(res, 200, { products }, "Best sellers fetched successfully");
 });
@@ -872,4 +1123,9 @@ module.exports = {
   getTrendingProducts,
   getBestSellers,
   getTopRatedProducts,
+  getProductFacets,
+  bulkUpdateProducts,
+  duplicateProduct,
+  uploadProductMedia,
+  removeProductMedia,
 };

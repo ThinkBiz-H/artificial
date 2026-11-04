@@ -28,7 +28,26 @@ class PublicSettings {
     this.maintenanceMessage = '',
     this.brandLogos = const <String, String>{},
     this.brandRevision = 0,
+    this.wholesaleEnabled = true,
+    this.minOrderValue = 5000,
+    this.wholesaleFreeDelivery = true,
+    this.wholesaleAllowCod = false,
+    this.collectBusinessDetails = true,
   });
+
+  /// Admin > Settings > Wholesale. Checkout enforces the same rules on the
+  /// server; the app uses them for the cart progress bar and to lock checkout.
+  final bool wholesaleEnabled;
+  final double minOrderValue;
+  final bool wholesaleFreeDelivery;
+  final bool wholesaleAllowCod;
+  final bool collectBusinessDetails;
+
+  /// Minimum bag value before checkout unlocks (0 = no minimum).
+  double get effectiveMinOrder => wholesaleEnabled ? minOrderValue : 0;
+
+  /// Delivery is free on every order while wholesale free delivery is on.
+  bool get freeDeliveryAlways => wholesaleEnabled && wholesaleFreeDelivery;
 
   /// Brand Management (admin): logo URL per slot with fallbacks already
   /// applied by the server — e.g. 'splashLogo', 'loginLogo', 'appBarLogo'.
@@ -68,7 +87,8 @@ class PublicSettings {
   final String maintenanceMessage;
 
   /// order.controller.js also honours featureFlags.codEnabled === false.
-  bool get isCodAvailable => codEnabled && featureFlags['codEnabled'] != false;
+  bool get isCodAvailable =>
+      codEnabled && featureFlags['codEnabled'] != false && (!wholesaleEnabled || wholesaleAllowCod);
 
   String get effectiveSupportPhone =>
       contactPhone.isNotEmpty ? contactPhone : supportPhone;
@@ -91,6 +111,8 @@ class PublicSettings {
     final brand = dynamicMapFromJson(json['brand']);
     final brandCompany = dynamicMapFromJson(brand['company']);
     final brandName = stringFromJson(brandCompany['brandName']);
+    final wholesale = dynamicMapFromJson(json['wholesale']);
+    bool flag(String key, bool fallback) => wholesale[key] == null ? fallback : boolFromJson(wholesale[key]);
 
     return PublicSettings(
       siteName: brandName.isNotEmpty
@@ -127,6 +149,11 @@ class PublicSettings {
       brandLogos: dynamicMapFromJson(brand['logos']).map((k, v) => MapEntry(k, stringFromJson(v)))
         ..removeWhere((_, v) => v.isEmpty),
       brandRevision: intFromJson(brand['revision']),
+      wholesaleEnabled: flag('enabled', true),
+      minOrderValue: wholesale['minOrderValue'] == null ? 5000 : doubleFromJson(wholesale['minOrderValue']),
+      wholesaleFreeDelivery: flag('freeDelivery', true),
+      wholesaleAllowCod: flag('allowCod', false),
+      collectBusinessDetails: flag('collectBusinessDetails', true),
     );
   }
 
@@ -165,6 +192,13 @@ class PublicSettings {
         'maintenanceMode': {
           'enabled': maintenanceEnabled,
           'message': maintenanceMessage,
+        },
+        'wholesale': {
+          'enabled': wholesaleEnabled,
+          'minOrderValue': minOrderValue,
+          'freeDelivery': wholesaleFreeDelivery,
+          'allowCod': wholesaleAllowCod,
+          'collectBusinessDetails': collectBusinessDetails,
         },
         'brand': {
           'logos': brandLogos,

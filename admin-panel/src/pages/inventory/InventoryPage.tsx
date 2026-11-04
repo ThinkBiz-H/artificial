@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, History, PackageX } from "lucide-react";
+import { AlertTriangle, Barcode, History, PackageMinus, PackagePlus, PackageX, SlidersHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { StockOperationModal, type StockMode } from "@/components/inventory/StockOperationModal";
 import { dashboardApi } from "@/api/dashboard";
 import { inventoryApi } from "@/api/inventory";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -21,6 +23,7 @@ const MOVEMENT_TYPES = ["purchase", "sale", "return", "adjustment", "transfer_in
 
 /** Low stock, out of stock and stock history (existing dashboard + inventory APIs). */
 export function InventoryPage() {
+  const [operation, setOperation] = useState<StockMode | null>(null);
   const [tab, setTab] = useState<Tab>("low");
   const [threshold, setThreshold] = useState(10);
   const [type, setType] = useState("");
@@ -67,7 +70,29 @@ export function InventoryPage() {
 
   return (
     <div>
-      <PageHeader title="Inventory" description="Stock alerts and every stock movement" />
+      <PageHeader
+        title="Inventory"
+        description="Purchase entry, adjustments, damaged stock, alerts and the full stock ledger"
+        action={
+          <>
+            <Button onClick={() => setOperation("purchase")}>
+              <PackagePlus size={15} /> Purchase entry
+            </Button>
+            <Button variant="outline" onClick={() => setOperation("adjust")}>
+              <SlidersHorizontal size={15} /> Adjust stock
+            </Button>
+            <Button variant="outline" onClick={() => setOperation("damaged")}>
+              <PackageMinus size={15} /> Damaged
+            </Button>
+            <Link to="/inventory/barcodes">
+              <Button variant="outline">
+                <Barcode size={15} /> Barcode labels
+              </Button>
+            </Link>
+          </>
+        }
+      />
+      {operation && <StockOperationModal open mode={operation} onClose={() => setOperation(null)} />}
       <div className="mb-4 flex flex-wrap gap-2">
         {tabs.map((t) => (
           <button
