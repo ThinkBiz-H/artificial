@@ -1,14 +1,23 @@
 import { apiClient } from "./client";
 import type { ApiEnvelope, Category, Brand, Faq, HomeSection, Announcement, PublicSettings, CmsPage, AttributeTemplateField } from "@/types";
 
+/** Drops inactive categories (and everything under them) at every level. */
+const activeOnly = (nodes: Category[]): Category[] =>
+  nodes.filter((c) => c.status === "active").map((c) => ({ ...c, children: activeOnly(c.children ?? []) }));
+
 export const categoriesApi = {
   list: (params: Record<string, unknown> = {}) =>
     apiClient.get<ApiEnvelope<{ categories: Category[]; count: number }>>("/categories", { params }).then((r) => r.data),
 
+  /**
+   * Every ACTIVE category from Admin > Categories, nested. `all=true` keeps
+   * categories that have no published products yet, so the storefront always
+   * lists exactly the categories the admin has switched on.
+   */
   tree: () =>
     apiClient
-      .get<ApiEnvelope<{ categories: Category[] }>>("/categories", { params: { tree: "true" } })
-      .then((r) => r.data),
+      .get<ApiEnvelope<{ categories: Category[] }>>("/categories", { params: { tree: "true", all: "true" } })
+      .then((r) => ({ ...r.data, data: { ...r.data.data, categories: activeOnly(r.data.data?.categories ?? []) } })),
 
   bySlug: (slug: string) =>
     apiClient.get<ApiEnvelope<{ category: Category }>>(`/categories/${slug}`).then((r) => r.data),

@@ -7,6 +7,7 @@ import { HomePage } from "@/pages/HomePage";
 import { ProductListingPage } from "@/pages/ProductListingPage";
 import { ProductDetailsPage } from "@/pages/ProductDetailsPage";
 import { CategoryDetailPage } from "@/pages/CategoryDetailPage";
+import { ShopPage, ProductsEntryPage } from "@/pages/ShopPage";
 import { NotFoundPage } from "@/pages/static/NotFoundPage";
 
 // Everything else is code-split and loaded on demand.
@@ -21,7 +22,9 @@ export const router = createBrowserRouter([
     errorElement: <NotFoundPage />,
     children: [
       { index: true, element: <HomePage /> },
-      { path: "categories", lazy: lazy(() => import("@/pages/CategoriesPage"), "CategoriesPage") },
+      // Shop: search → main categories → sub-category cards → products (same as from Home).
+      { path: "shop", element: <ShopPage /> },
+      { path: "categories", element: <ShopPage /> },
       { path: "categories/:slug", element: <CategoryDetailPage /> },
       { path: "collections", lazy: lazy(() => import("@/pages/CategoriesPage"), "CategoriesPage") },
       { path: "collections/:slug", element: <CategoryDetailPage /> },
@@ -31,7 +34,7 @@ export const router = createBrowserRouter([
       { path: "track-order", lazy: lazy(() => import("@/pages/TrackOrderPage"), "TrackOrderPage") },
       { path: "brands", lazy: lazy(() => import("@/pages/BrandsPage"), "BrandsPage") },
       { path: "brands/:slug", lazy: lazy(() => import("@/pages/BrandDetailPage"), "BrandDetailPage") },
-      { path: "products", element: <ProductListingPage /> },
+      { path: "products", element: <ProductsEntryPage /> },
       { path: "products/:slug", element: <ProductDetailsPage /> },
       { path: "search", element: <ProductListingPage mode="search" /> },
       { path: "wishlist", lazy: lazy(() => import("@/pages/WishlistPage"), "WishlistPage") },

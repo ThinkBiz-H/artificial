@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:swastikala/core/models/category_model.dart';
 import 'package:swastikala/core/models/common_models.dart';
+import 'package:swastikala/core/models/content_models.dart';
 import 'package:swastikala/core/models/paginated.dart';
 import 'package:swastikala/core/models/product_model.dart';
 import 'package:swastikala/core/models/product_query.dart';
@@ -32,11 +33,20 @@ class _FakeCatalog implements CatalogRepository {
   }
 
   @override
+  Future<({List<ProductModel> items, int total})> categoryPreview(String categoryId, {int limit = 10}) async {
+    final items = productListFromJson(_fixture('products.json')['products']);
+    return (items: items, total: items.length);
+  }
+
+  @override
+  Future<CategoryBannerModel?> categoryBanner(String categoryId) async => null;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
-  testWidgets('Shop renders the products returned by the API', (tester) async {
+  testWidgets('Shop opens on the first main category with its products', (tester) async {
     final products = productListFromJson(_fixture('products.json')['products']);
     expect(products, isNotEmpty);
 
@@ -53,6 +63,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(tester.takeException(), isNull);
+    // Same layout as a category opened from Home: search, then every active
+    // main category (first one selected), then that category's products.
+    expect(find.text('Search necklaces, earrings, bangles…'), findsOneWidget);
+    expect(find.text('Marriage'), findsWidgets);
+    expect(find.text('Resin'), findsWidgets);
     for (final p in products) {
       expect(find.text(p.title), findsWidgets, reason: 'card for ${p.title}');
     }

@@ -22,6 +22,7 @@ class AppConfig {
     }
 
     // return 'http://72.62.114.184:5001/api/v1';
+    // This PC's LAN address (ipconfig). Or build with --dart-define=API_BASE_URL=…
     return 'http://192.168.1.2:5001/api/v1';
   }
 

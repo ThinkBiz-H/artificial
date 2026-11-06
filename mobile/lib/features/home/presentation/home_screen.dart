@@ -101,7 +101,7 @@ class HomeScreen extends ConsumerWidget {
       });
     final all = flattenCategories(topLevel);
     final allCategories = all.map((e) => e.$1).toList();
-    final collections = pickCollections(all, topLevel.take(8).map((c) => c.id).toSet());
+    final collections = pickCollections(all, topLevel.map((c) => c.id).toSet());
     final bridal = findCategoryByKeyword(allCategories, const ['bridal', 'wedding', 'dulhan']);
     final everyday = findCategoryByKeyword(
       allCategories.where((c) => c.id != bridal?.id),

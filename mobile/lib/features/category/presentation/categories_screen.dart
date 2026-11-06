@@ -194,38 +194,57 @@ class _CategoryPane extends StatelessWidget {
             child: const Text('VIEW ALL PRODUCTS'),
           )
         else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: children.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.sm,
-              childAspectRatio: 0.72,
-            ),
-            itemBuilder: (_, i) {
-              final sub = children[i];
-              return GestureDetector(
-                onTap: () => context.push(RoutePaths.category(sub.slug)),
-                child: Column(
-                  children: [
-                    AspectRatio(
-                      aspectRatio: 1,
-                      child: AppNetworkImage(
-                        url: sub.image?.url,
-                        targetWidth: 200,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(sub.displayTitle,
-                        maxLines: 2,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.labelMedium),
-                  ],
+          // Every active sub-category as a circular image card: 2 per row on
+          // phones, 4 on tablets, 6 on wide screens (by available width).
+          LayoutBuilder(
+            builder: (context, box) {
+              final columns = box.maxWidth >= 900 ? 6 : (box.maxWidth >= 560 ? 4 : 2);
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: children.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: AppSpacing.lg,
+                  crossAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 0.74,
                 ),
+                itemBuilder: (_, i) {
+                  final sub = children[i];
+                  return GestureDetector(
+                    onTap: () => context.push(RoutePaths.category(sub.slug)),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 120, maxHeight: 120),
+                              child: AspectRatio(
+                                aspectRatio: 1,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: context.colors.outline),
+                                  ),
+                                  child: ClipOval(
+                                    // No image → AppNetworkImage's branded placeholder.
+                                    child: AppNetworkImage(url: sub.image?.url, targetWidth: 240),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(sub.displayTitle,
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.text.labelMedium),
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),

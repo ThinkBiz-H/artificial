@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/category_model.dart';
 import '../../../core/models/content_models.dart';
+import '../../../core/models/product_model.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/providers/repository_providers.dart';
 
@@ -30,3 +31,9 @@ final categoryBySlugProvider =
 final categoryBannerProvider = FutureProvider.autoDispose
     .family<CategoryBannerModel?, String>(
         (ref, categoryId) => ref.watch(catalogRepositoryProvider).categoryBanner(categoryId));
+
+/// Main category page: up to 10 featured products of the selected
+/// (sub-)category, shown above the "View all" button.
+final categoryPreviewProvider = FutureProvider.autoDispose
+    .family<({List<ProductModel> items, int total}), String>(
+        (ref, categoryId) => ref.watch(catalogRepositoryProvider).categoryPreview(categoryId));

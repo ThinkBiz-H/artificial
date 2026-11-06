@@ -99,7 +99,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         branches: [
           StatefulShellBranch(routes: [GoRoute(path: RoutePaths.home, builder: (_, __) => const HomeScreen())]),
           StatefulShellBranch(
-              routes: [GoRoute(path: RoutePaths.categories, builder: (_, __) => const ShopScreen())]),
+              routes: [
+                GoRoute(
+                  path: RoutePaths.categories,
+                  builder: (_, s) => ShopScreen(initialCategory: s.uri.queryParameters['category']),
+                ),
+              ]),
           StatefulShellBranch(routes: [GoRoute(path: RoutePaths.wishlist, builder: (_, __) => const WishlistScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: RoutePaths.cart, builder: (_, __) => const CartScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: RoutePaths.account, builder: (_, __) => const AccountScreen())]),

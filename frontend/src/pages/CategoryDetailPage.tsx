@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useCategory, useCategoryTree } from "@/hooks/useCatalog";
 import { useCategoryBanner } from "@/hooks/useCategoryBanner";
 import { CatalogView } from "@/components/catalog/CatalogView";
+import { CategoryBrowse } from "@/components/catalog/CategoryBrowse";
 import { Seo, breadcrumbJsonLd } from "@/components/common/Seo";
 import { SmartLink } from "@/components/common/SmartLink";
 import { buttonClasses } from "@/components/ui/Button";
@@ -50,12 +51,19 @@ function findInTree(tree: Category[], slug: string, trail: Category[] = []): Cat
   return undefined;
 }
 
-export function CategoryDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+/** /categories/:slug — or, with `slug`, the category the Shop page opens on. */
+export function CategoryDetailPage({ slug: slugProp }: { slug?: string } = {}) {
+  const params = useParams<{ slug: string }>();
+  const slug = slugProp ?? params.slug;
   const { data: fetched, isLoading, isError, refetch } = useCategory(slug);
   const { data: tree } = useCategoryTree();
   const cached = useMemo(() => (slug && tree ? findInTree(tree, slug) : undefined), [tree, slug]);
   const category = fetched ?? cached;
+  // Main category with sub-categories → browse view (featured preview);
+  // a sub-category, or ?view=all → the full product listing.
+  const [searchParams] = useSearchParams();
+  const viewAll = searchParams.get("view") === "all";
+  const browse = !viewAll && !!category?.children?.some((c) => c.status === "active");
   const { data: banner } = useCategoryBanner(category?._id);
 
   if (isError && !cached) return <ErrorState title="Collection not found" description="This collection may have moved. Explore our other collections." onRetry={() => refetch()} />;
@@ -79,7 +87,7 @@ export function CategoryDetailPage() {
   const ancestors = (category.ancestors ?? []).filter((a): a is Category => typeof a === "object" && !!a?.slug);
   const crumbs = [
     { name: "Home", path: "/" },
-    { name: "Collections", path: "/categories" },
+    { name: "Collections", path: "/collections" },
     ...ancestors.map((a) => ({ name: a.name, path: `/categories/${a.slug}` })),
     { name: category.name, path: `/categories/${category.slug}` },
   ];
@@ -99,15 +107,25 @@ export function CategoryDetailPage() {
         canonicalPath={`/categories/${category.slug}`}
         jsonLd={breadcrumbJsonLd(crumbs)}
       />
-      <CatalogView
-        key={category._id}
-        title={category.name}
-        eyebrow={category.shortTitle || "Collection"}
-        description={category.description}
-        crumbs={crumbs}
-        category={category}
-        banner={banner?.desktopImage?.url ? <CategoryHero banner={banner} fallbackTitle={category.name} /> : undefined}
-      />
+      {browse ? (
+        <CategoryBrowse
+          key={category._id}
+          category={category}
+          crumbs={crumbs}
+          eyebrow={category.shortTitle || "Collection"}
+          banner={banner?.desktopImage?.url ? <CategoryHero banner={banner} fallbackTitle={category.name} /> : undefined}
+        />
+      ) : (
+        <CatalogView
+          key={category._id}
+          title={viewAll ? `All ${category.name}` : category.name}
+          eyebrow={category.shortTitle || "Collection"}
+          description={category.description}
+          crumbs={crumbs}
+          category={category}
+          banner={banner?.desktopImage?.url ? <CategoryHero banner={banner} fallbackTitle={category.name} /> : undefined}
+        />
+      )}
     </>
   );
 }

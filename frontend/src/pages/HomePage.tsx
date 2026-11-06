@@ -81,7 +81,8 @@ export function HomePage() {
     () =>
       pickCollections(
         allCategories,
-        new Set(topLevel.slice(0, 8).map((c) => c._id)),
+        // Main categories already appear in "Shop by Category" above.
+        new Set(topLevel.map((c) => c._id)),
       ),
     [allCategories, topLevel],
   );

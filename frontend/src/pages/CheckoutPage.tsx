@@ -10,7 +10,7 @@ import { useCheckoutQuote } from "@/hooks/useCheckoutQuote";
 import { usePublicSettings } from "@/hooks/useCatalog";
 import { useStoreInfo } from "@/hooks/useStoreInfo";
 import { useAuthStore } from "@/stores/auth.store";
-import { checkoutApi, type AutofillCustomer, type PaymentMethodId } from "@/api/checkout";
+import { checkoutApi, type AutofillCustomer, type BusinessDetails, type PaymentMethodId } from "@/api/checkout";
 import { cartApi } from "@/api/cart";
 import { ordersApi } from "@/api/orders";
 import { paymentsApi } from "@/api/payments";
@@ -27,6 +27,10 @@ import { AddressForm, INDIAN_STATES } from "@/components/account/AddressForm";
 import { cartLineImage, cartLineOptions } from "@/components/cart/CartLine";
 import { LineOptions } from "@/components/common/LineOptions";
 import { Seo } from "@/components/common/Seo";
+import { MinimumOrderProgress } from "@/components/cart/MinimumOrderProgress";
+import { useMinimumOrder } from "@/hooks/useMinimumOrder";
+
+const GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
 interface OrderShippingAddress {
   fullName: string;
@@ -151,7 +155,7 @@ export function CheckoutPage() {
   const addAddress = useAddAddress();
   const updateAddress = useUpdateAddress();
   const mergeGuestCart = useMergeGuestCartIntoServer();
-  const { siteName } = useStoreInfo();
+  const { siteName, collectBusinessDetails } = useStoreInfo();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -167,6 +171,17 @@ export function CheckoutPage() {
   const [contact, setContact] = useState({ email: "", mobile: "" });
   const [guestAddress, setGuestAddress] = useState(emptyGuestAddress);
   const [saveAddress, setSaveAddress] = useState(true);
+
+  // ---- Business details (GST invoice) + order notes ----
+  const [business, setBusiness] = useState<Required<BusinessDetails>>({ name: "", gstin: "", email: "", phone: "" });
+  const [orderNotes, setOrderNotes] = useState("");
+  const setBiz = (field: keyof BusinessDetails) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setBusiness((b) => ({ ...b, [field]: field === "gstin" ? e.target.value.toUpperCase().replace(/\s/g, "") : e.target.value }));
+  const gstinInvalid = !!business.gstin && !GSTIN.test(business.gstin);
+  const businessPayload = (): BusinessDetails | undefined => {
+    const b = Object.fromEntries(Object.entries(business).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v));
+    return Object.keys(b).length ? b : undefined;
+  };
 
   // ---- Order OTP (every order is confirmed with an OTP) ----
   const [requestingOtp, setRequestingOtp] = useState(false);
@@ -218,6 +233,10 @@ export function CheckoutPage() {
   // priced exactly as the order will be (coupon, prepaid discount, shipping, GST).
   const { data: quote, isFetching: quoteLoading } = useCheckoutQuote({ lines: items, pincode: pincodeForShipping, paymentMethod, couponCode });
   const paymentMethods = quote?.paymentMethods;
+  // Wholesale minimum: the quote is authoritative, the settings value covers loading.
+  const localMinimum = useMinimumOrder(quote?.subTotal ?? subTotal);
+  const minimum = quote?.minimumOrder ?? localMinimum;
+  const minimumNotMet = minimum.enabled && !minimum.met;
 
   useEffect(() => {
     if (!paymentMethods?.length) return;
@@ -267,6 +286,8 @@ export function CheckoutPage() {
   // ---- Place order: OTP first, then the order (COD) or Razorpay (online) ----
   const handlePlaceOrder = async () => {
     if (items.length === 0) return toast.error("Your cart is empty");
+    if (minimumNotMet) return toast.error(`Minimum wholesale order is ${formatCurrency(minimum.value)} — add ${formatCurrency(minimum.remaining)} more.`);
+    if (gstinInvalid) return toast.error("Please enter a valid 15-character GSTIN, or leave it blank");
     if (!orderShippingAddress()) return toast.error(isAuthenticated ? "Please select a delivery address" : "Please complete your delivery address");
     if (!paymentMethod) return toast.error("Please choose a payment method");
     // Logged-in shoppers confirm with their account's mobile, so the OTP signs in the same account.
@@ -311,7 +332,7 @@ export function CheckoutPage() {
 
   /** Online: open Razorpay; the order is created only after the payment is verified. */
   const payOnline = async (shippingAddress: OrderShippingAddress) => {
-    const intent = await paymentsApi.createIntent({ shippingAddress, couponCode });
+    const intent = await paymentsApi.createIntent({ shippingAddress, couponCode, business: businessPayload(), shippingNotes: orderNotes.trim() || undefined });
     await loadRazorpayScript();
     const { razorpayOrder, razorpayKeyId } = intent.data;
 
@@ -400,7 +421,7 @@ export function CheckoutPage() {
     setPlacing(true);
     try {
       if (paymentMethod === "cod") {
-        const res = await ordersApi.create({ shippingAddress, paymentMethod: "cod", couponCode });
+        const res = await ordersApi.create({ shippingAddress, paymentMethod: "cod", couponCode, business: businessPayload(), shippingNotes: orderNotes.trim() || undefined });
         goToSuccess(res.data.order._id);
       } else {
         await payOnline(shippingAddress);
@@ -426,6 +447,8 @@ export function CheckoutPage() {
 
   const goNext = () => {
     if (step === 1) return handlePlaceOrder();
+    if (minimumNotMet) return toast.error(`Minimum wholesale order is ${formatCurrency(minimum.value)} — add ${formatCurrency(minimum.remaining)} more.`);
+    if (gstinInvalid) return toast.error("Please enter a valid 15-character GSTIN, or leave it blank");
     if (!isAuthenticated) {
       if (!/^\d{10}$/.test(contact.mobile.trim())) return toast.error("Please enter a valid 10-digit mobile number");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email.trim())) return toast.error("Please enter a valid email address");
@@ -497,6 +520,12 @@ export function CheckoutPage() {
               summary={
                 <>
                   <span className="font-medium text-fg">{shipName}</span> — {shipTo}
+                  {business.name && (
+                    <span className="block text-fg-muted">
+                      {business.name}
+                      {business.gstin && ` · GSTIN ${business.gstin}`}
+                    </span>
+                  )}
                   {!isAuthenticated && (
                     <span className="block text-fg-muted">
                       {contact.mobile} · {contact.email}
@@ -656,6 +685,30 @@ export function CheckoutPage() {
                 </div>
               )}
 </div>
+                <div className="border-t border-border pt-6">
+                  {collectBusinessDetails && (
+                    <>
+                      <p className="text-sm font-semibold text-fg">
+                        Business details <span className="font-normal text-fg-muted">— for your GST invoice</span>
+                      </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <Input label="Business / shop name" autoComplete="organization" value={business.name} onChange={setBiz("name")} />
+                        <Input label="GSTIN (optional)" value={business.gstin} onChange={setBiz("gstin")} maxLength={15} error={gstinInvalid ? "Enter a valid 15-character GSTIN" : undefined} />
+                        <Input label="Business email (optional)" type="email" autoComplete="email" value={business.email} onChange={setBiz("email")} />
+                        <Input label="Business phone (optional)" type="tel" inputMode="numeric" value={business.phone} onChange={setBiz("phone")} />
+                      </div>
+                    </>
+                  )}
+                  <label className={cn("block", collectBusinessDetails && "mt-4")}>
+                    <span className="text-sm font-medium text-fg">Order notes (optional)</span>
+                    <textarea
+                      value={orderNotes}
+                      onChange={(e) => setOrderNotes(e.target.value.slice(0, 500))}
+                      rows={3}
+                      className="mt-2 w-full rounded-input border border-border bg-surface px-4 py-3 text-sm outline-none placeholder:text-fg-muted focus:border-primary"
+                    />
+                  </label>
+                </div>
               </div>
             </StepPanel>
 
@@ -686,7 +739,7 @@ export function CheckoutPage() {
                   })}
                 </div>
               )}
-              <Button className="mt-6 w-full" size="lg" isLoading={placing2} disabled={!paymentMethod} onClick={handlePlaceOrder}>
+              <Button className="mt-6 w-full" size="lg" isLoading={placing2} disabled={!paymentMethod || minimumNotMet} onClick={handlePlaceOrder}>
                 {placeLabel}
               </Button>
             </StepPanel>
@@ -703,6 +756,11 @@ export function CheckoutPage() {
                   Edit bag
                 </Link>
               </div>
+              {minimum.enabled && (
+                <div className="mt-5">
+                  <MinimumOrderProgress subTotal={quote?.subTotal ?? subTotal} />
+                </div>
+              )}
               <ul className="mt-5 divide-y divide-border">
                 {items.map((item) => {
                   const img = cartLineImage(item);
@@ -778,7 +836,7 @@ export function CheckoutPage() {
                   <dd className="font-semibold text-fg">{formatCurrency(total)}</dd>
                 </div>
               </dl>
-              <Button className="mt-6 hidden w-full lg:flex" size="lg" isLoading={step === 1 && placing2} onClick={onCta}>
+              <Button className="mt-6 hidden w-full lg:flex" size="lg" isLoading={step === 1 && placing2} disabled={minimumNotMet} onClick={onCta}>
                 {ctaLabel}
               </Button>
               <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-fg-muted">
@@ -808,7 +866,7 @@ export function CheckoutPage() {
                 <p className="text-label text-fg-muted">Total</p>
                 <p className="text-base font-semibold text-fg">{formatCurrency(total)}</p>
               </div>
-              <Button className="flex-1" size="lg" isLoading={step === 1 && placing2} onClick={onCta}>
+              <Button className="flex-1" size="lg" isLoading={step === 1 && placing2} disabled={minimumNotMet} onClick={onCta}>
                 {step === 1 ? placeLabel : "Continue"}
               </Button>
             </div>

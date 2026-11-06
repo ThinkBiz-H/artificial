@@ -13,7 +13,8 @@ export function CategoryShowcase({
 }) {
   if (!isLoading && categories.length === 0) return null;
 
-  const items = categories.slice(0, 6);
+  // Every active main category from the admin — no fixed count.
+  const items = categories;
 
   return (
     <section className="mx-auto max-w-7xl px-5 py-20 md:px-10 md:py-28">

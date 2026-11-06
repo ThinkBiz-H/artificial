@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import 'shimmer_widgets.dart';
 
@@ -28,7 +29,21 @@ class AppNetworkImage extends StatelessWidget {
   final int targetWidth;
   final Alignment alignment;
 
+  /// Media saved by a backend running on a developer PC is stored as
+  /// http://localhost:5001/uploads/… — on a phone "localhost" is the phone,
+  /// so point such URLs at the backend host the app talks to.
+  static String resolve(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || !uri.hasScheme) return url.trim();
+    const local = {'localhost', '127.0.0.1', '0.0.0.0', '::1'};
+    if (!local.contains(uri.host)) return url.trim();
+    final api = Uri.tryParse(AppConfig.apiBaseUrl);
+    if (api == null || api.host.isEmpty || local.contains(api.host)) return url.trim();
+    return uri.replace(scheme: api.scheme, host: api.host, port: api.hasPort ? api.port : null).toString();
+  }
+
   static String optimize(String url, int width) {
+    url = resolve(url);
     if (!url.contains('res.cloudinary.com') || !url.contains('/upload/')) return url;
     if (RegExp(r'/upload/[^/]*(f_auto|q_auto|w_\d+)').hasMatch(url)) return url;
     return url.replaceFirst('/upload/', '/upload/f_auto,q_auto,w_$width/');

@@ -10,7 +10,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/States";
 import { Seo } from "@/components/common/Seo";
 import { CartLine } from "@/components/cart/CartLine";
-import { FreeShippingProgress } from "@/components/cart/FreeShippingProgress";
+import { MinimumOrderProgress } from "@/components/cart/MinimumOrderProgress";
+import { useMinimumOrder } from "@/hooks/useMinimumOrder";
 import { ProductRail } from "@/components/product/ProductRail";
 import { useNewArrivals, useRelatedProducts } from "@/hooks/useProducts";
 
@@ -27,6 +28,7 @@ export function CartPage() {
   const subTotal = data?.subTotal ?? items.reduce((sum, i) => sum + i.itemTotal, 0);
   const total = couponResult ? couponResult.total : subTotal;
   const count = items.reduce((s, i) => s + i.quantity, 0);
+  const minimum = useMinimumOrder(subTotal);
   const { data: related } = useRelatedProducts(items[0]?.product._id);
   const { data: newArrivals } = useNewArrivals();
   const inBag = new Set(items.map((i) => i.product._id));
@@ -97,7 +99,7 @@ export function CartPage() {
             <div className="rounded-2xl border border-border bg-surface p-6 sm:p-7">
               <h2 className="font-display text-2xl font-semibold text-fg">Order Summary</h2>
               <div className="mt-5">
-                <FreeShippingProgress subTotal={subTotal} />
+                <MinimumOrderProgress subTotal={subTotal} />
               </div>
 
               <div className="mt-5">
@@ -158,7 +160,7 @@ export function CartPage() {
               </dl>
               {mrpSavings > 0 && <p className="mt-3 text-sm text-success">You're saving {formatCurrency(mrpSavings)} on MRP</p>}
 
-              <Button size="lg" className="mt-6 w-full" onClick={() => navigate("/checkout", { state: { couponCode: couponResult?.code } })}>
+              <Button size="lg" className="mt-6 w-full" disabled={!minimum.met} onClick={() => navigate("/checkout", { state: { couponCode: couponResult?.code } })}>
                 Proceed to checkout
               </Button>
               <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-fg-muted">

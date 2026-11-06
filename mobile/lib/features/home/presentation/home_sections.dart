@@ -52,17 +52,16 @@ const _collectionKeywords = [
 /// Collection-style categories: keyword matches (Kundan, Pearl, AD, Temple…)
 /// first, then subcategories, then anything else with an image — skipping
 /// those already shown in "Shop by Category".
-List<CategoryModel> pickCollections(List<(CategoryModel, int)> all, Set<String> exclude, {int max = 5}) {
+List<CategoryModel> pickCollections(List<(CategoryModel, int)> all, Set<String> exclude) {
   final withImage = all.where((e) => _hasImage(e.$1) && e.$1.isActive).toList();
   final keyword = withImage.where((e) => _collectionKeywords.any('${e.$1.name} ${e.$1.slug}'.toLowerCase().contains));
   final sub = withImage.where((e) => e.$2 > 0 && !exclude.contains(e.$1.id));
   final rest = withImage.where((e) => !exclude.contains(e.$1.id));
   final seen = <String>{};
   final out = <CategoryModel>[];
-  for (final e in [...keyword, ...sub, ...rest, ...withImage]) {
-    if (!seen.add(e.$1.id)) continue;
-    out.add(e.$1);
-    if (out.length == max) break;
+  // Every eligible category, in priority order — no fixed count.
+  for (final e in [...keyword, ...sub, ...rest]) {
+    if (seen.add(e.$1.id)) out.add(e.$1);
   }
   return out;
 }
@@ -299,7 +298,7 @@ class _ArchCategoryCard extends StatelessWidget {
   }
 }
 
-/// "Shop by Category — Find your signature" (website CategoryShowcase): first six top-level categories.
+/// "Shop by Category — Find your signature" (website CategoryShowcase): every active main category.
 class CategoryShowcase extends StatelessWidget {
   const CategoryShowcase({super.key, required this.categories});
   final List<CategoryModel> categories;
@@ -308,7 +307,7 @@ class CategoryShowcase extends StatelessWidget {
   Widget build(BuildContext context) {
     if (categories.isEmpty) return const SizedBox.shrink();
     final width = MediaQuery.sizeOf(context).width * 0.42;
-    final items = categories.take(6).toList();
+    final items = categories;
     return _Band(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -335,17 +334,16 @@ class CategoryShowcase extends StatelessWidget {
   }
 }
 
-/// "Curated edits — Featured Collections" (website TrendingCollections). Hidden below three collections.
+/// "Curated edits — Featured Collections" (website TrendingCollections): every collection category.
 class FeaturedCollections extends StatelessWidget {
   const FeaturedCollections({super.key, required this.collections});
   final List<CategoryModel> collections;
 
   @override
   Widget build(BuildContext context) {
-    if (collections.length < 3) return const SizedBox.shrink();
+    if (collections.isEmpty) return const SizedBox.shrink();
     final lead = collections.first;
-    final rest = collections.skip(1).toList();
-    final others = rest.take(rest.length >= 4 ? 4 : 2).toList();
+    final others = collections.skip(1).toList();
 
     Widget tile(CategoryModel c, {bool big = false}) => GestureDetector(
           onTap: () => context.push(RoutePaths.category(c.slug)),
@@ -400,7 +398,8 @@ class FeaturedCollections extends StatelessWidget {
             child: Column(
               children: [
                 AspectRatio(aspectRatio: 4 / 5, child: tile(lead, big: true)),
-                const SizedBox(height: AppSpacing.sm),
+                if (others.isNotEmpty) const SizedBox(height: AppSpacing.sm),
+                if (others.isNotEmpty)
                 GridView.count(
                   crossAxisCount: 2,
                   shrinkWrap: true,

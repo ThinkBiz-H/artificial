@@ -6,7 +6,9 @@ import type { Category } from "@/types";
 
 /** Sorts by admin menu order, then name — mirrors the backend's tree ordering. */
 export function sortForMenu(categories: Category[]) {
-  return [...categories].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+  return [...categories].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
+  );
 }
 
 /** Active categories from the admin tree; `header` = those flagged "show in header". */
@@ -27,20 +29,27 @@ export const SHOP_LINKS = {
 export const BRAND_TAGLINE = "Premium Artificial Jewellery";
 
 /** Store logo — the image already carries the brand name, so no text wordmark beside it. `tagline` adds the italic line beneath, as in the header. */
-export function Brand({ className, tagline = false }: { className?: string; tagline?: boolean }) {
+export function Brand({
+  className,
+  tagline = false,
+}: {
+  className?: string;
+  tagline?: boolean;
+}) {
   const { siteName, logo } = useStoreInfo();
   return (
-    <Link to="/" className={cn("flex min-w-0 flex-col items-center", className)} aria-label={`${siteName} home`}>
+    <Link
+      to="/"
+      className={cn("flex min-w-0 flex-col items-center", className)}
+      aria-label={`${siteName} home`}
+    >
       <img
-        src={logo}
+        src="/logomain.png"
         alt={siteName}
         width={1264}
         height={843}
-        className="h-12 w-auto max-w-full flex-none object-contain sm:h-14 lg:h-16"
+        className="h-16 w-auto max-w-full object-contain sm:h-20 lg:h-24"
       />
-      {tagline && (
-        <span className="mt-1.5 hidden whitespace-nowrap font-sub text-[11px] tracking-[0.16em] text-accent sm:block">{BRAND_TAGLINE}</span>
-      )}
     </Link>
   );
 }

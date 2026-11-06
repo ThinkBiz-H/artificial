@@ -7,12 +7,13 @@ import { Seo, breadcrumbJsonLd } from "@/components/common/Seo";
 import { Reveal } from "@/components/common/Reveal";
 import { CategoryCard } from "@/components/home/CategoryCard";
 import { sortForMenu } from "@/components/layout/nav";
+import { SubCategoryGrid } from "@/components/catalog/SubCategoryGrid";
 
 /** All collections — the admin's category tree, top-level first with their subcategories. */
 export function CategoriesPage() {
   const { data, isLoading, isError, refetch } = useCategoryTree();
   const categories = sortForMenu((data ?? []).filter((c) => c.status === "active"));
-  const crumbs = [{ name: "Home", path: "/" }, { name: "Collections", path: "/categories" }];
+  const crumbs = [{ name: "Home", path: "/" }, { name: "Collections", path: "/collections" }];
 
   return (
     <div className="container-x py-10 sm:py-14">
@@ -44,24 +45,24 @@ export function CategoriesPage() {
             ))}
           </div>
 
-          <div className="mt-20 space-y-12 border-t border-border pt-14">
+          <div className="mt-20 space-y-16 border-t border-border pt-14">
             {categories
-              .filter((c) => c.children && c.children.length > 0)
+              .filter((c) => c.children?.some((ch) => ch.status === "active"))
               .map((c) => (
-                <div key={c._id} className="grid gap-4 sm:grid-cols-[220px_1fr]">
-                  <Link to={`/categories/${c.slug}`} className="font-display text-2xl font-semibold text-fg hover:text-accent">
-                    {c.name}
-                  </Link>
-                  <ul className="flex flex-wrap gap-2">
-                    {sortForMenu(c.children!.filter((ch) => ch.status === "active")).map((ch) => (
-                      <li key={ch._id}>
-                        <Link to={`/categories/${ch.slug}`} className="block rounded-full border border-border bg-surface px-4 py-2 text-sm text-fg hover:border-primary">
-                          {ch.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <section key={c._id} aria-labelledby={`subs-${c._id}`}>
+                  <div className="mb-8 flex items-end justify-between gap-4">
+                    <h2 id={`subs-${c._id}`} className="font-display text-3xl font-semibold text-fg">
+                      {c.name}
+                    </h2>
+                    <Link
+                      to={`/categories/${c.slug}?view=all`}
+                      className="flex-none text-[11px] font-semibold uppercase tracking-[0.2em] text-fg underline decoration-gold-deep underline-offset-8 hover:text-primary"
+                    >
+                      View all
+                    </Link>
+                  </div>
+                  <SubCategoryGrid categories={c.children ?? []} />
+                </section>
               ))}
           </div>
         </>

@@ -7,7 +7,8 @@ import { useCart } from "@/hooks/useCart";
 import { useUiStore } from "@/stores/ui.store";
 import { formatCurrency } from "@/lib/utils";
 import { CartLine } from "./CartLine";
-import { FreeShippingProgress } from "./FreeShippingProgress";
+import { MinimumOrderProgress } from "./MinimumOrderProgress";
+import { useMinimumOrder } from "@/hooks/useMinimumOrder";
 
 export function CartDrawer() {
   const open = useUiStore((s) => s.isCartDrawerOpen);
@@ -18,6 +19,7 @@ export function CartDrawer() {
   const subTotal = data?.subTotal ?? items.reduce((s, i) => s + i.itemTotal, 0);
   const count = items.reduce((s, i) => s + i.quantity, 0);
   const close = () => setOpen(false);
+  const minimum = useMinimumOrder(subTotal);
 
   return (
     <Drawer
@@ -40,6 +42,7 @@ export function CartDrawer() {
             <Button
               size="lg"
               className="w-full"
+              disabled={!minimum.met}
               onClick={() => {
                 close();
                 navigate("/checkout");
@@ -73,7 +76,7 @@ export function CartDrawer() {
         </div>
       ) : (
         <div className="space-y-5 p-5">
-          <FreeShippingProgress subTotal={subTotal} />
+          <MinimumOrderProgress subTotal={subTotal} />
           <ul className="divide-y divide-border">
             {items.map((item) => (
               <li key={`${item.product._id}-${item.variant?._id || ""}-${item.color || ""}-${item.size || ""}`} className="py-5 first:pt-0">

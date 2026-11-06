@@ -74,7 +74,7 @@ function SearchDiscovery({ onNavigate, onPick, compact }: { onNavigate: () => vo
 
   const popular = (trending?.length ? trending : best ?? []).slice(0, 4);
   const terms = useTrendingTerms([...(trending ?? []), ...(best ?? [])]);
-  const categories = tree.filter((c) => c.status === "active").slice(0, 8);
+  const categories = tree.filter((c) => c.status === "active");
 
   const chip = "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-sm text-fg transition-colors hover:border-primary hover:text-primary";
 
@@ -159,8 +159,7 @@ function SearchResults({ query, onNavigate, onSubmitAll }: { query: string; onNa
     const q = debounced.toLowerCase();
     if (q.length < 2) return [];
     return flattenCategories(tree.filter((c) => c.status === "active"))
-      .filter((c) => c.status === "active" && c.name.toLowerCase().includes(q))
-      .slice(0, 4);
+      .filter((c) => c.status === "active" && c.name.toLowerCase().includes(q));
   }, [tree, debounced]);
 
   if (debounced.length < 2) return null;

@@ -1058,7 +1058,9 @@ const getTrendingProducts = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50);
 
   // Products the admin marked "Trending" first, then the most viewed.
-  const products = await flaggedFirst({ isTrending: true }, "-viewCount", { viewCount: { $gt: 0 } }, limit);
+  // Flagged first, then most viewed; a new catalogue with no views yet is
+  // topped up with its best-selling / newest products.
+  const products = await flaggedFirst({ isTrending: true }, "-viewCount -salesCount -isTopSelling -createdAt", {}, limit);
 
   sendResponse(
     res,
@@ -1088,15 +1090,23 @@ const getTopRatedProducts = asyncHandler(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 12, 50);
   const minReviews = Math.max(Number(req.query.minReviews) || 1, 0);
 
-  const products = await Product.find({
-    isDeleted: false,
-    status: "active",
-    numReviews: { $gte: minReviews },
-  })
+  const base = { isDeleted: false, status: "active" };
+  const rated = await Product.find({ ...base, numReviews: { $gte: minReviews } })
     .sort("-rating -numReviews")
     .limit(limit)
     .populate("category", "name slug")
     .lean();
+  // A new catalogue has no reviews yet: top up with the best-selling, then
+  // newest active products so the section is never empty.
+  const rest =
+    rated.length >= limit
+      ? []
+      : await Product.find({ ...base, _id: { $nin: rated.map((p) => p._id) } })
+          .sort("-rating -salesCount -isTopSelling -createdAt")
+          .limit(limit - rated.length)
+          .populate("category", "name slug")
+          .lean();
+  const products = [...rated, ...rest];
 
   sendResponse(
     res,

@@ -40,6 +40,22 @@ class CatalogRepository extends BaseRepository {
     return parse(res.data);
   }
 
+  /// Category page preview: the admin's Featured products of [categoryId]
+  /// (descendants included) first, topped up with the newest — up to [limit].
+  Future<({List<ProductModel> items, int total})> categoryPreview(String categoryId, {int limit = 10}) async {
+    final base = ProductQuery(categoryId: categoryId).toQueryParameters(page: 1, limit: limit);
+    final results = await Future.wait([
+      api.get(ApiEndpoints.products, query: {...base, 'featured': true}, auth: false),
+      api.get(ApiEndpoints.products, query: {...base, 'sort': '-createdAt'}, auth: false),
+    ]);
+    final seen = <String>{};
+    final items = [
+      for (final r in results) ...productListFromJson(r.data['products']),
+    ].where((p) => seen.add(p.id)).take(limit).toList(growable: false);
+    final pagination = Pagination.fromJson(mapOrNullSafe(results[1].data['pagination']) ?? const <String, dynamic>{});
+    return (items: items, total: pagination.total);
+  }
+
   Future<List<ProductModel>> rail(ProductRail rail, {int limit = AppConfig.railSize}) {
     final path = switch (rail) {
       ProductRail.featured => ApiEndpoints.featuredProducts,
@@ -112,14 +128,21 @@ class CatalogRepository extends BaseRepository {
     return json;
   }
 
+  /// Every ACTIVE category from Admin > Categories, nested — same as the
+  /// website. `all=true` keeps categories with no published products yet, so
+  /// the app always lists exactly the categories the admin has switched on.
   Future<List<CategoryModel>> categoryTree() => cachedGet(
-        cacheKey: 'categories:tree',
+        cacheKey: 'categories:tree:all',
         request: () => api.get(ApiEndpoints.categories,
-            query: {'tree': 'true', 'status': 'active'}, auth: false),
-        parse: (data) => categoryListFromJson(data['categories'])
-            .where((c) => c.isActive)
-            .toList(growable: false),
+            query: {'tree': 'true', 'all': 'true'}, auth: false),
+        parse: (data) => _activeOnly(categoryListFromJson(data['categories'])),
       );
+
+  /// Drops inactive categories (and everything under them) at every level.
+  static List<CategoryModel> _activeOnly(List<CategoryModel> nodes) => [
+        for (final c in nodes)
+          if (c.isActive) c.copyWith(children: _activeOnly(c.children)),
+      ];
 
   Future<CategoryModel> categoryBySlug(String slug) async {
     final res = await api.get(ApiEndpoints.categoryBySlug(slug), auth: false);

@@ -61,11 +61,11 @@ export function MobileMenu({ open, onClose }: { open: boolean; onClose: () => vo
 
   const primary = [
     { label: "Home", to: "/" },
-    { label: "Shop", to: "/products" },
+    { label: "Shop", to: "/shop" },
     { label: "New Arrivals", to: SHOP_LINKS.newArrivals },
     { label: "Best Sellers", to: SHOP_LINKS.bestSellers },
     { label: "Sale", to: SHOP_LINKS.sale },
-    { label: "All Collections", to: "/categories" },
+    { label: "All Collections", to: "/collections" },
   ];
   const secondary = [
     { label: "Track order", to: "/track-order" },

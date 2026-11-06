@@ -12,27 +12,19 @@ const COLLECTION_KEYWORDS = ["kundan", "pearl", "american diamond", "american-di
  * (Kundan, Pearl, AD, Temple…) first, then subcategories, then anything
  * else with an image — skipping those already shown in "Shop by Category".
  */
-export function pickCollections(all: (Category & { depth: number })[], exclude: Set<string>, max = 5) {
+export function pickCollections(all: (Category & { depth: number })[], exclude: Set<string>) {
   const withImage = all.filter((c) => c.image?.url && c.status === "active");
   const keyword = withImage.filter((c) => COLLECTION_KEYWORDS.some((k) => `${c.name} ${c.slug}`.toLowerCase().includes(k)));
   const sub = withImage.filter((c) => c.depth > 0 && !exclude.has(c._id));
   const rest = withImage.filter((c) => !exclude.has(c._id));
+  // Every eligible category, in priority order — no fixed count.
   const seen = new Set<string>();
-  const out: Category[] = [];
-  for (const c of [...keyword, ...sub, ...rest, ...withImage]) {
-    if (seen.has(c._id)) continue;
-    seen.add(c._id);
-    out.push(c);
-    if (out.length === max) break;
-  }
-  return out;
+  return [...keyword, ...sub, ...rest].filter((c) => (seen.has(c._id) ? false : (seen.add(c._id), true)));
 }
 
 export function TrendingCollections({ collections }: { collections: Category[] }) {
-  if (collections.length < 3) return null;
-  const [lead, ...rest] = collections;
-  // The 2×2 slot area beside the lead tile fits either four tiles or two tall ones.
-  const others = rest.slice(0, rest.length >= 4 ? 4 : 2);
+  if (collections.length === 0) return null;
+  const [lead, ...others] = collections;
 
   const tile = (c: Category, big = false) => (
     <Link key={c._id} to={`/categories/${c.slug}`} className="group relative block h-full overflow-hidden rounded-2xl bg-surface-muted">
@@ -51,11 +43,12 @@ export function TrendingCollections({ collections }: { collections: Category[] }
   return (
     <section className="py-16 sm:py-24">
       <div className="container-x">
-        <SectionHeading eyebrow="Curated edits" title="Featured Collections" viewAllTo="/categories" viewAllLabel="All collections" />
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:h-[680px] lg:grid-cols-4 lg:grid-rows-2">
-          <div className="col-span-2 aspect-[4/5] sm:aspect-[16/10] lg:row-span-2 lg:aspect-auto">{tile(lead, true)}</div>
+        <SectionHeading eyebrow="Curated edits" title="Featured Collections" viewAllTo="/collections" viewAllLabel="All collections" />
+        {/* Lead tile spans 2×2; every other collection flows into the grid, however many there are. */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:auto-rows-[330px] lg:grid-cols-4">
+          <div className={cn("col-span-2 aspect-[4/5] sm:aspect-[16/10] lg:aspect-auto", others.length > 0 && "lg:row-span-2")}>{tile(lead, true)}</div>
           {others.map((c) => (
-            <div key={c._id} className={cn("aspect-[3/4] lg:aspect-auto", others.length === 2 && "lg:row-span-2")}>
+            <div key={c._id} className="aspect-[3/4] lg:aspect-auto">
               {tile(c)}
             </div>
           ))}

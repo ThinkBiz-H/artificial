@@ -11,9 +11,6 @@ import { SearchDrawer } from "./Search";
 import { MobileMenu } from "./MobileMenu";
 import { Brand, SHOP_LINKS, useMenuCategories } from "./nav";
 
-/** Max categories shown as cards in the mega menu; the rest are one click away on /categories. */
-const MEGA_MENU_MAX = 8;
-
 function useScrolled(threshold = 8) {
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -47,9 +44,9 @@ const iconBtn =
 
 /** Category card grid — every card is a real admin category (image, name, short title / description). */
 function CategoriesMegaMenu({ id, categories, onNavigate }: { id: string; categories: Category[]; onNavigate: () => void }) {
-  const items = categories.slice(0, MEGA_MENU_MAX);
-  // 2–4 columns depending on how many categories the store has; 7–8 wrap to two rows of four.
-  const cols = items.length >= 7 || items.length === 4 ? 4 : Math.max(2, Math.min(items.length, 3));
+  // Every active main category; 2–4 columns by count, the grid scrolls when long.
+  const items = categories;
+  const cols = items.length >= 4 ? 4 : Math.max(2, items.length);
   const COLS = { 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" } as const;
   const WIDTH = { 2: "w-[460px]", 3: "w-[min(640px,calc(100vw-5rem))]", 4: "w-[min(820px,calc(100vw-5rem))]" } as const;
 
@@ -62,7 +59,7 @@ function CategoriesMegaMenu({ id, categories, onNavigate }: { id: string; catego
       )}
     >
       <div className="gold-rule" aria-hidden />
-      <ul className={cn("grid gap-x-5 gap-y-7 p-7", COLS[cols as 2 | 3 | 4])}>
+      <ul className={cn("grid max-h-[min(70vh,640px)] gap-x-5 gap-y-7 overflow-y-auto overscroll-contain p-7", COLS[cols as 2 | 3 | 4])}>
         {items.map((c) => {
           const blurb = c.shortTitle || c.description;
           return (
@@ -96,7 +93,7 @@ function CategoriesMegaMenu({ id, categories, onNavigate }: { id: string; catego
           {categories.length} {categories.length === 1 ? "category" : "categories"} to explore
         </p>
         <Link
-          to="/categories"
+          to="/collections"
           onClick={onNavigate}
           className="group/all inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary hover:text-primary-hover"
         >
@@ -153,7 +150,7 @@ function PrimaryNav() {
           </NavLink>
         </li>
         <li onMouseEnter={hide}>
-          <NavLink to="/products" className={({ isActive }) => cn(navLink, isActive && navLinkActive)}>
+          <NavLink to="/shop" className={({ isActive }) => cn(navLink, isActive && navLinkActive)}>
             Shop
           </NavLink>
         </li>

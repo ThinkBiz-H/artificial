@@ -79,7 +79,7 @@ export function Footer() {
 
   const shopLinks = [
     { label: "New arrivals", to: SHOP_LINKS.newArrivals },
-    ...header.slice(0, 6).map((c) => ({ label: c.name, to: `/categories/${c.slug}` })),
+    ...header.map((c) => ({ label: c.name, to: `/categories/${c.slug}` })),
     { label: "Best sellers", to: SHOP_LINKS.bestSellers },
     { label: "Sale", to: SHOP_LINKS.sale },
   ];

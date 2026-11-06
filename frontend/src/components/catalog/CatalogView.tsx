@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ui/States";
 import { flattenCategories } from "@/components/home/homeData";
 import { cn, formatCurrency } from "@/lib/utils";
 import { FilterPanel } from "./FilterPanel";
+import { CategorySearchStrip, SubCategoryCards, findParentCategory } from "./SubCategoryCards";
 import { SORT_OPTIONS, countActiveFilters, readFilters, toApiParams } from "./catalogParams";
 
 const PAGE_SIZE = 16;
@@ -82,6 +83,7 @@ export function CatalogView({
   /** Default URL params for curated pages (e.g. { sort: "-createdAt" } or { sale: "1" }); params the shopper sets win. */
   preset?: Record<string, string>;
 }) {
+  const listCategoryId = category?._id;
   const [searchParams, setSearchParams] = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const presetKey = JSON.stringify(preset ?? {});
@@ -95,14 +97,16 @@ export function CatalogView({
   const chosen = readFilters(searchParams);
 
   const { data: tree = [] } = useCategoryTree();
+  // The main category a listing belongs to (itself, or the parent of a sub-category).
+  const mainOf = (c: Category) => (c.children?.some((x) => x.status === "active") ? c : (findParentCategory(tree, c._id) ?? c));
   const { data: brands } = useBrands();
   const allCategories = useMemo(() => flattenCategories(tree.filter((c) => c.status === "active")), [tree]);
 
   const params = useMemo(() => {
     // Pages come from the infinite query, not the URL.
-    const { page: _page, ...rest } = toApiParams(filters, category?._id, PAGE_SIZE);
+    const { page: _page, ...rest } = toApiParams(filters, listCategoryId, PAGE_SIZE);
     return rest;
-  }, [effectiveParams, category?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveParams, listCategoryId]); // eslint-disable-line react-hooks/exhaustive-deps
   const { data, isLoading, isError, refetch, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteProductList(params);
   const products = useMemo(() => data?.pages.flatMap((p) => p.data.products) ?? [], [data]);
   const isRefiltering = isFetching && !isLoading && !isFetchingNextPage;
@@ -198,25 +202,14 @@ export function CatalogView({
         <div className="catalog-pattern pointer-events-none absolute inset-y-0 right-0 w-full sm:w-2/3" aria-hidden />
         <Reveal className={cn(FRAME, "relative py-12 sm:py-16 lg:py-20")}>
           <Breadcrumbs items={crumbs} className="text-[11px] uppercase tracking-[0.2em]" />
+          {/* Search → main categories (category pages) */}
+          {category && <CategorySearchStrip tree={tree} currentId={mainOf(category)._id} />}
           {eyebrow && <p className="eyebrow ornament mt-8 sm:mt-10">{eyebrow}</p>}
           <h1 className="mt-4 max-w-4xl font-display text-[32px] font-semibold leading-[1.05] text-fg sm:text-[40px] lg:text-[60px]">{title}</h1>
           {description && <p className="mt-5 max-w-xl text-base leading-relaxed text-fg-muted">{description}</p>}
 
-          {category && (category.children?.length ?? 0) > 0 && (
-            <div className="no-scrollbar -mx-4 mt-8 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-              {category
-                .children!.filter((c) => c.status === "active")
-                .map((c) => (
-                  <Link
-                    key={c._id}
-                    to={`/categories/${c.slug}`}
-                    className="flex-none rounded-full border border-border bg-surface px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-fg transition-colors hover:border-gold-deep hover:text-primary"
-                  >
-                    {c.name}
-                  </Link>
-                ))}
-            </div>
-          )}
+          {/* Sub-category image cards — each opens that sub-category's full listing */}
+          {category && <SubCategoryCards group={mainOf(category)} selectedId={category._id === mainOf(category)._id ? undefined : category._id} linkMode />}
         </Reveal>
       </section>
 

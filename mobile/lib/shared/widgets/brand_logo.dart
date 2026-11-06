@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/providers/app_providers.dart';
+import 'app_network_image.dart';
 
 /// Brand Management logo slots used in the app (admin → Settings → Brand
 /// Management). The server already applies fallbacks between slots.
@@ -62,7 +63,7 @@ class BrandImage extends StatelessWidget {
       label: AppConfig.appName,
       image: true,
       child: CachedNetworkImage(
-        imageUrl: source,
+        imageUrl: AppNetworkImage.resolve(source),
         height: height,
         width: width,
         fit: fit,
